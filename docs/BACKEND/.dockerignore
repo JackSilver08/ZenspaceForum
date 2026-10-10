@@ -1,0 +1,11 @@
+.git
+.env
+app
+main
+npm
+deploy.sh
+docker-compose.yml
+restore.sql
+*.exe
+*.test
+*.log

@@ -252,7 +252,7 @@ func LayThongTinNguoiDung(w http.ResponseWriter, r *http.Request) {
 }
 
 // ĐĂNG NHẬP
-var jwtKey = []byte("your-secret-key")
+var jwtKey []byte
 
 // Cấu trúc để nhận dữ liệu JSON từ client
 type YeuCauDangNhap struct {

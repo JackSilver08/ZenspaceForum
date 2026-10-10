@@ -1,35 +1,54 @@
-# ZenSpace: chạy bằng Docker trên Windows
+# ZenSpace: chay bang Docker tren Windows
 
-## Yêu cầu một lần
+## Cai dat mot lan
+1. Cai Docker Desktop: https://www.docker.com/products/docker-desktop/
+2. Mo Docker Desktop va cho den khi Docker Engine san sang.
+3. Clone hoac giai nen toan bo repository, giu nguyen file `ZenSpaceDB_latest.sql`.
 
-1. Cài Docker Desktop: https://www.docker.com/products/docker-desktop/
-2. Mở Docker Desktop và chờ trạng thái Docker Engine sẵn sàng.
-3. Giải nén toàn bộ thư mục ZenSpace, giữ nguyên file `ZenSpaceDB_latest.sql`.
+## Khoi dong bang mot lenh
+Mo PowerShell tai thu muc goc repository va chay:
 
-## Khởi động
+```powershell
+.\START.bat
+```
 
-Chạy `START.bat` ở thư mục gốc ZenSpace. Script sẽ tự tạo `.env` nếu chưa có, build backend Go, khởi chạy MySQL + Redis + backend + web server, chờ API sẵn sàng, mở trình duyệt và theo dõi log trực tiếp.
+Hoac nhay dup `START.bat` trong File Explorer. Khong chay script tu thu muc `docs` / `docs\BACKEND`.
 
-- Website: http://localhost:8088
-- API kiểm tra: http://localhost:8080/hello
-- MySQL để kết nối bằng công cụ ngoài (nếu cần): `127.0.0.1:3307`, user `root`, mật khẩu trong `.env`
+Lan dau, script tu tao file `.env`, sinh mat khau MySQL va JWT secret rieng cho may local, tu chon cong host con trong neu cac cong uu tien dang bi chiem, luu cau hinh vao `.env`, build backend va khoi dong MySQL + Redis + Go + Nginx. Khi API va website san sang, script tu mo trinh duyet va theo doi log.
 
-Không cần cài Go, MySQL, Redis hoặc Nginx riêng trên Windows. Docker sẽ chạy các dịch vụ trong container.
+Cac cong uu tien:
+- Website: `8089`
+- API health endpoint: `8081`
+- MySQL tu may Windows: `3307`
 
-## Dừng và khởi động lại
+Neu mot cong dang bi dung boi ung dung khac, script thu cong tiep theo va in URL / cong thuc te o dau log. Cac cong da chon duoc luu trong `.env` de nhung lan chay sau dung cung dia chi.
 
-- Chạy `STOP.bat` để dừng các container (dữ liệu MySQL vẫn được giữ lại).
-- Chạy lại `START.bat` để khởi động.
-- Để xem log sau đó: `docker compose logs -f --tail=100`.
+## Dung va xem log
+- `STOP.bat`: dung cac container, giu lai database va uploads.
+- `START.bat`: khoi dong lai, build backend khi code thay doi, mo trinh duyet va theo doi log.
+- `docker compose logs -f --tail=100`: theo doi log thu cong.
+- `docker compose ps`: xem trang thai service.
 
-## Dữ liệu và cập nhật mã nguồn
+Nhan Ctrl+C trong cua so theo doi log chi dung theo doi log; container van chay. Chay `STOP.bat` neu muon dung ung dung.
 
-MySQL dùng Docker volume `mysql_data`; ảnh/video tải lên được lưu trong `data/uploads` (bao gồm thư mục con `posts`). Những dữ liệu này sẽ còn nguyên khi chạy `docker compose down` và build bản mới. File SQL chỉ được tự động import khi volume database được khởi tạo lần đầu; Compose không xóa hoặc nhập đè dữ liệu hiện có mỗi lần khởi động.
+## Database va uploads
+- Database dung Docker volume `zenspace_mysql_data`.
+- Anh va tep tai len duoc luu trong `data/uploads`.
+- SQL duoc import tu dong chi khi volume MySQL duoc tao lan dau. Compose khong nhap de len database da ton tai moi lan khoi dong.
+- Khong chay `docker compose down -v` neu muon giu database.
+- SQL mau dung tai khoan demo voi mat khau chung `ZenSpaceDemo123!` (chi danh cho local development). Khong dung tai khoan/mat khau demo cho moi truong that.
 
-Sau khi lấy mã nguồn mới, chạy lại `START.bat`; Docker Compose sẽ build image backend mới. Không dùng `docker compose down -v` trừ khi chủ động muốn xóa volume database và khởi tạo lại database từ file SQL.
+## Cap nhat va khac phuc su co
+```powershell
+git pull
+.\START.bat
+```
 
-## Khắc phục nhanh
+Neu ban dang co thay doi chua commit, hay kiem tra `git status` truoc khi pull.
 
-- Nếu cổng `8088`, `8080` hoặc `3307` đã được chương trình khác sử dụng, hãy dừng chương trình đó rồi chạy lại.
-- Nếu backend không sẵn sàng, xem log: `docker compose logs --tail=150 db backend redis web`.
-- Nếu database đã được tạo trước đó nhưng đang trống, SQL init sẽ không chạy lại tự động. Sao lưu dữ liệu trước khi chủ động xóa volume `zenspace_mysql_data`/volume của Compose rồi khởi động lại.
+Neu service chua san sang, launcher tu hien `docker compose ps` va log 150 dong gan nhat. Co the xem lai bang:
+```powershell
+docker compose logs --tail=150 db redis backend web
+```
+
+File `.env` va thu muc `data/` bi bo qua boi Git, khong push mat khau local len repository.

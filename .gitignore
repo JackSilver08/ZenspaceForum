@@ -1,2 +1,7 @@
 .env
+.env.*
+!.env.example
 /data/
+/docs/BACKEND/app
+/docs/BACKEND/main
+*.log

@@ -108,6 +108,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	jwtSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	if len(jwtSecret) < 32 {
+		log.Fatal("JWT_SECRET is required and must contain at least 32 characters. Start the app with START.bat to generate a local secret.")
+	}
+	jwtKey = []byte(jwtSecret)
+
 	var err error
 
 	// Kết nối MySQL bằng cấu hình môi trường (không ghi mật khẩu ra log).
