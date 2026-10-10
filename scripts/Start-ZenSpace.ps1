@@ -61,7 +61,7 @@ function Test-PortAvailable([int]$Port) {
 }
 
 function Test-PortBelongsToZenSpace([string]$Service, [int]$ContainerPort, [int]$HostPort) {
-    $ids = @(& docker ps -a --filter 'label=com.docker.compose.project=zenspace' --filter "label=com.docker.compose.service=$Service" --format '{{.ID}}' 2>$null)
+    $ids = @(& docker ps --filter 'status=running' --filter 'label=com.docker.compose.project=zenspace' --filter "label=com.docker.compose.service=$Service" --format '{{.ID}}' 2>$null)
     foreach ($id in $ids) {
         if ([string]::IsNullOrWhiteSpace([string]$id)) { continue }
         $json = & docker inspect --format '{{json .NetworkSettings.Ports}}' $id 2>$null
