@@ -1,22 +1,26 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.21
+FROM golang:1.24.3
 
-# Set working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum first (for better caching)
-COPY go.mod ./
+COPY go.mod ./ 
 COPY go.sum ./
 RUN go mod download
 
-# Copy the rest of the code
+# ✅ Copy code Go từ thư mục hiện tại (BACKEND)
 COPY . .
 
-# Build the Go app
+# ✅ Copy thư mục chứa HTML, CSS, JS, IMG (từ thư mục cha BACKEND → docs)
+COPY ../docs ./docs
+
+# ✅ Cài netcat
+RUN apt-get update && apt-get install -y netcat-openbsd
+
+COPY wait-for-mysql.sh /wait-for-mysql.sh
+RUN chmod +x /wait-for-mysql.sh
+
 RUN go build -o main .
 
-# Expose the port the app runs on
 EXPOSE 8080
 
-# Command to run the executable
-CMD ["./main"]
+CMD ["/wait-for-mysql.sh", "./main"]

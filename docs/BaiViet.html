@@ -8,29 +8,24 @@
     <link
       rel="icon"
       sizes="132x132"
-      href="IMG/Zenpacia 4.0.png"
+      href="IMG/Zenpalog.png"
       type="image/x-icon"
     />
     <style>
       main {
         max-width: 800px;
-        margin: 30px auto;
+        margin: 80px; /* 👈 Thay đổi ở đây: đẩy xuống 80px */
         padding: 20px;
         background-color: #fff;
         border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        color: #333;
       }
 
       #chiTietBaiDang h2 {
         font-size: 28px;
         color: #2c7be5;
         margin-bottom: 15px;
-      }
-
-      #chiTietBaiDang p {
-        font-size: 17px;
-        line-height: 1.7;
-        color: #333;
       }
 
       .back-link {
@@ -146,7 +141,7 @@
     <!-- Header giữ nguyên từ index.html -->
     <header>
       <a href="index.html">
-        <img src="IMG/Zenpacia 4.0.png" alt="Logo" />
+        <img src="IMG/Zenpalog.png" alt="Logo" />
       </a>
 
       <div class="search-container">
@@ -194,7 +189,7 @@
     <main>
       <div id="chiTietBaiDang">
         <h2 id="tieuDe">Đang tải...</h2>
-        <p id="noiDung"></p>
+        <div id="noiDung"></div>
       </div>
       <a href="index.html" class="back-link">← Quay lại trang chủ</a>
     </main>
@@ -252,16 +247,21 @@
 
         // ✅ Hiển thị chi tiết bài viết
         if (idBaiDang) {
-          fetch(`http://localhost:8080/api/baiviet/${idBaiDang}`)
+          fetch(`/api/baiviet/${idBaiDang}`)
             .then((res) => res.json())
             .then((data) => {
-              document.getElementById("tieuDe").textContent = data.tieuDe;
-              document.getElementById("noiDung").innerHTML = data.noiDung;
+              console.log("📦 Kết quả bài viết:", data);
+
+              const bai = data.data || data; // dùng data.data nếu có, còn không thì dùng data luôn
+              document.getElementById("tieuDe").textContent =
+                bai.tieuDe || "(Không có tiêu đề)";
+              document.getElementById("noiDung").innerHTML =
+                bai.noiDung || "(Không có nội dung)";
             })
             .catch((err) => {
               document.getElementById("chiTietBaiDang").innerHTML =
                 "<p style='color:red;'>Không tìm thấy bài viết.</p>";
-              console.error("Lỗi:", err);
+              console.error("❌ Lỗi khi tải bài viết:", err);
             });
         }
 
@@ -280,7 +280,7 @@
             if (!noiDung)
               return alert("Nội dung bình luận không được để trống!");
 
-            fetch("http://localhost:8080/api/binhluan", {
+            fetch("/api/binhluan", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -305,7 +305,7 @@
         function taiBinhLuan() {
           const idNguoiDung =
             parseInt(localStorage.getItem("idTaiKhoan")) || -1;
-          fetch(`http://localhost:8080/api/binhluan/${idBaiDang}`)
+          fetch(`/api/binhluan/${idBaiDang}`)
             .then((res) => res.json())
             .then((data) => {
               if (!Array.isArray(data))
@@ -345,16 +345,13 @@
                   if (!confirm("Bạn chắc chắn muốn xóa bình luận này?")) return;
 
                   try {
-                    const res = await fetch(
-                      `http://localhost:8080/XoaBinhLuan/${id}`,
-                      {
-                        method: "DELETE",
-                        headers: {
-                          Authorization:
-                            "Bearer " + localStorage.getItem("token"),
-                        },
-                      }
-                    );
+                    const res = await fetch(`/api/XoaBinhLuan/${id}`, {
+                      method: "DELETE",
+                      headers: {
+                        Authorization:
+                          "Bearer " + localStorage.getItem("token"),
+                      },
+                    });
                     if (!res.ok) throw new Error(await res.text());
                     alert("Đã xóa bình luận");
                     taiBinhLuan();

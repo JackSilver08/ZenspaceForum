@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8
+    container_name: db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Tuan@1234
+      MYSQL_DATABASE: ZenSpaceDB
+    ports:
+      - "3306:3306"
+    networks:
+      - zenspace
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    build: .
+    container_name: backend
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - zenspace
+    volumes:
+      - ./uploads:/root/project/backend/uploads # 👈 Gắn volume để lưu avatar
+networks:
+  zenspace:
+
+volumes:
+  db_data:

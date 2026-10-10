@@ -39,7 +39,7 @@ loginForm.addEventListener("submit", (e) => {
 // Hàm gửi yêu cầu đăng nhập đến server
 async function dangNhap(username, password) {
   try {
-    const response = await fetch("http://localhost:8080/DangNhap", {
+    const response = await fetch("/api/DangNhap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ TenDangNhap: username, MatKhau: password }), // ✅ Viết hoa đúng
@@ -103,7 +103,7 @@ registerForm.addEventListener("submit", async (e) => {
   }
 
   try {
-    const response = await fetch("http://localhost:8080/DangKy", {
+    const response = await fetch("/api/DangKy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

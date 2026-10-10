@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Thông tin tài khoản - Zen Space</title>
+    <title>Thông tin tài khoản | Zen Space</title>
     <link rel="stylesheet" href="CSS/TaiKhoan.css" />
     <link
       rel="icon"
       sizes="132x132"
-      href="IMG/Zenpacia 4.0.png"
+      href="IMG/Zenpalog.png"
       type="image/x-icon"
     />
   </head>
@@ -108,14 +108,22 @@
 
         function fetchWithAuth(url, options = {}) {
           options.headers = options.headers || {};
+
+          // Nếu body là FormData thì KHÔNG set Content-Type
+          if (!(options.body instanceof FormData)) {
+            options.headers["Content-Type"] = "application/json";
+          }
+
+          const token = localStorage.getItem("token");
           if (token) {
             options.headers["Authorization"] = "Bearer " + token;
           }
+
           return fetch(url, options);
         }
 
         // 🔄 Lấy dữ liệu người dùng & bài viết
-        fetchWithAuth(`http://127.0.0.1:8080/api/nguoidung/${userId}`)
+        fetchWithAuth(`/api/nguoidung/trangcanhan/${userId}`)
           .then((res) => {
             if (!res.ok) throw new Error("Không tìm thấy người dùng.");
             return res.json();
@@ -134,6 +142,11 @@
             document.getElementById("profileUsername").textContent =
               user.tenDangNhap;
             document.getElementById("profileAvatarImg").src = avatar;
+            document
+              .getElementById("profileAvatarImg")
+              .addEventListener("click", () => {
+                document.getElementById("changeAvatarInput").click();
+              });
 
             // 👉 Danh sách bài viết
             const postList = document.getElementById("postList");
@@ -160,12 +173,9 @@
               controls.style.display = "block";
               btnXoa.addEventListener("click", () => {
                 if (confirm("Bạn có chắc muốn xóa tài khoản này không?")) {
-                  fetchWithAuth(
-                    `http://localhost:8080/api/xoataikhoan/${user.id}`,
-                    {
-                      method: "DELETE",
-                    }
-                  )
+                  fetchWithAuth(`/api/xoataikhoan/${user.id}`, {
+                    method: "DELETE",
+                  })
                     .then((res) => {
                       if (res.ok) {
                         alert("✅ Đã xóa tài khoản.");
@@ -196,9 +206,7 @@
                 chatNoiDung.innerHTML =
                   "<p><i>⏳ Đang tải lịch sử chat...</i></p>";
 
-                fetchWithAuth(
-                  `http://localhost:8080/api/chat/lichsu/${currentUserId}/${user.id}`
-                )
+                fetchWithAuth(`/api/chat/lichsu/${currentUserId}/${user.id}`)
                   .then((res) => res.json())
                   .then((data) => {
                     chatNoiDung.innerHTML = "";
@@ -236,7 +244,7 @@
                   noiDung: noiDung,
                 };
 
-                fetchWithAuth("http://localhost:8080/api/chat/gui", {
+                fetchWithAuth("/api/chat/gui", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(payload),
@@ -276,46 +284,47 @@
             window.location.href = "index.html";
           });
 
-        // 🔁 Đổi avatar
-        document
-          .getElementById("profileAvatarImg")
-          .addEventListener("click", () => {
-            document.getElementById("changeAvatarInput").click();
-          });
-
         document
           .getElementById("changeAvatarInput")
           .addEventListener("change", (event) => {
             const file = event.target.files[0];
             if (!file || !file.type.startsWith("image/")) {
-              alert("Vui lòng chọn một tệp ảnh hợp lệ.");
+              alert("Vui lòng chọn một ảnh hợp lệ.");
               return;
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
-              const base64 = reader.result;
-              fetchWithAuth(
-                `http://localhost:8080/api/nguoidung/${userId}/avatar`,
-                {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ avatar: base64 }),
-                }
-              )
-                .then((res) => res.json())
-                .then((data) => {
-                  if (data.success) {
-                    alert("Đổi avatar thành công!");
-                    document.getElementById("profileAvatarImg").src = base64;
-                  } else {
-                    alert("Lỗi: " + (data.message || "Không thể đổi avatar."));
-                  }
-                })
-                .catch(() => alert("Lỗi kết nối khi đổi avatar."));
-            };
+            const formData = new FormData();
+            formData.append("avatar", file);
 
-            reader.readAsDataURL(file);
+            fetchWithAuth(`/api/nguoidung/${userId}/avatar`, {
+              method: "POST",
+              body: formData,
+            })
+              .then((res) => {
+                if (!res.ok) {
+                  return res.json().then((errData) => {
+                    throw new Error(
+                      errData.message || `Lỗi server: ${res.status}`
+                    );
+                  });
+                }
+                return res.json();
+              })
+              .then((data) => {
+                if (data.success) {
+                  alert("✅ Avatar đã cập nhật.");
+                  const newAvatarUrl = `/api/${data.path}?t=` + Date.now();
+                  document.getElementById("profileAvatarImg").src =
+                    newAvatarUrl;
+                  if (parseInt(currentUserId) === parseInt(userId)) {
+                    localStorage.setItem("avatarUrl", newAvatarUrl); // 👈 cập nhật avatar mới
+                  }
+                }
+              })
+              .catch((err) => {
+                console.error("❌ Lỗi khi upload avatar:", err);
+                alert("Không thể kết nối server.");
+              });
           });
       })();
     </script>

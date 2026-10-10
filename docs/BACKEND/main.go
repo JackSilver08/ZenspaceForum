@@ -2,19 +2,30 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 )
 
 
+
 var DB *sql.DB  // ✅ Chỉ giữ ở đây
+func responseError(w http.ResponseWriter, code int, message string) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(code)
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "success": false,
+        "message": message,
+    })
+}
 
 func validateToken(r *http.Request) (*jwt.Token, error) {
 	authHeader := r.Header.Get("Authorization")
@@ -105,29 +116,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 
 func main() {
- host := os.Getenv("DB_HOST")
-if host == "" { host = "hopper.proxy.rlwy.net" }
+    var err error
 
-port := os.Getenv("DB_PORT")
-if port == "" { port = "53455" }
-
-user := os.Getenv("DB_USER")
-if user == "" { user = "root" }
-
-pass := os.Getenv("DB_PASS")
-if pass == "" { pass = "dieShqEVeInoVrIswYLVLkwkyzYBcCHo" }
-
-dbName := os.Getenv("DB_NAME")
-if dbName == "" { dbName = "railway" }
-
-
-
-    
-var err error
-
-   dsn := "root:Tuan@1234@tcp(127.0.0.1:3306)/ZenSpaceDB?parseTime=true"
-
-
+    dsn := "root:Tuan@1234@tcp(db:3306)/ZenSpaceDB?parseTime=true"
+    log.Println("📡 DSN:", dsn)
 
     DB, err = sql.Open("mysql", dsn)
     if err != nil {
@@ -140,51 +132,76 @@ var err error
 
     log.Println("✅ Kết nối MySQL thành công!")
 
-    // ✅ Khởi tạo router
+    // Thiết lập cấu hình kết nối
+    DB.SetConnMaxLifetime(5 * time.Minute)
+    DB.SetMaxIdleConns(10)
+    DB.SetMaxOpenConns(100)
+
+    // Khởi tạo router chính và middleware CORS
     router := mux.NewRouter()
     router.Use(enableCORS)
 
-    // Các endpoint handler
+    // ============================
+    // 📁 Public routes
+    // ============================
+
     router.HandleFunc("/", handler)
-router.HandleFunc("/hello", Hello).Methods("GET", "OPTIONS")
-// Tài khoản
-router.HandleFunc("/api/nguoidung/{id}", TrangCaNhanHandler)
-router.HandleFunc("/api/xoataikhoan/{id}", XoaTaiKhoanHandler).Methods("DELETE", "OPTIONS")
-router.HandleFunc("/api/nguoidung/{id}/avatar", DoiAvatarHandler).Methods("PUT", "OPTIONS")
-router.HandleFunc("/api/timkiemnguoidung", TimKiemNguoiDung).Methods("GET", "OPTIONS")
-router.HandleFunc("/api/chat/gui", GuiTinNhanHandler).Methods("POST", "OPTIONS")
-router.HandleFunc("/api/chat/lichsu/{id1}/{id2}", LayLichSuTinNhanHandler).Methods("GET", "OPTIONS")
+    router.HandleFunc("/hello", Hello).Methods("GET", "OPTIONS")
+    router.HandleFunc("/DangNhap", DangNhap).Methods("POST", "OPTIONS")
+    router.HandleFunc("/DangKy", DangKy).Methods("POST", "OPTIONS")
 
-// Đăng nhập / Đăng ký
-router.HandleFunc("/DangNhap", DangNhap).Methods("POST", "OPTIONS")
-router.HandleFunc("/DangKy", DangKy).Methods("POST", "OPTIONS")
+    // 🖼 Phục vụ ảnh avatar
+    router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads/"))))
 
-// Bài đăng
-router.HandleFunc("/DangBai", DangBai).Methods("POST", "OPTIONS")
-router.HandleFunc("/LayBaiDang", LayBaiDang).Methods("GET", "OPTIONS")
-router.HandleFunc("/api/baiviet/{id}", LayChiTietBaiDang).Methods("GET", "OPTIONS")
-router.HandleFunc("/SuaBaiDang/{id}", SuaBaiDang).Methods("PUT", "OPTIONS")
-router.HandleFunc("/XoaBaiDang/{id}", XoaBaiDang).Methods("DELETE", "OPTIONS")
+    // ============================
+    // 📦 API routes (prefix /api)
+    // ============================
 
-// Bình luận
-router.HandleFunc("/api/binhluan", ThemBinhLuan).Methods("POST", "OPTIONS")
-router.HandleFunc("/api/binhluan/{id}", LayBinhLuanTheoBaiDang).Methods("GET", "OPTIONS")
-router.HandleFunc("/XoaBinhLuan/{id}", XoaBinhLuan).Methods("DELETE", "OPTIONS") // nếu có
+    api := router.PathPrefix("/api").Subrouter()
 
-// Cảm xúc
-router.HandleFunc("/ThemCamXuc/{idBaiDang}", ThemCamXuc).Methods("POST", "OPTIONS")
-router.HandleFunc("/ThongKeCamXuc/{idBaiDang}", ThongKeCamXuc).Methods("GET", "OPTIONS")
+    // Người dùng
+    api.HandleFunc("/nguoidung/{id}", LayThongTinNguoiDung).Methods("GET", "OPTIONS")
+    api.HandleFunc("/nguoidung/{id}/avatar", DoiAvatarHandler).Methods("POST", "OPTIONS")
+    api.HandleFunc("/nguoidung/trangcanhan/{id}", TrangCaNhanHandler)
+    api.HandleFunc("/xoataikhoan/{id}", XoaTaiKhoanHandler).Methods("DELETE", "OPTIONS")
+    api.HandleFunc("/timkiemnguoidung", TimKiemNguoiDung).Methods("GET", "OPTIONS")
 
+    // Bài đăng
+    api.HandleFunc("/baiviet", LayBaiDang).Methods("GET", "OPTIONS")
+    api.HandleFunc("/baiviet", DangBai).Methods("POST", "OPTIONS")
+    api.HandleFunc("/baiviet/{id}", LayChiTietBaiDang).Methods("GET", "OPTIONS")
+    api.HandleFunc("/baiviet/{id}", SuaBaiDang).Methods("PUT", "OPTIONS")
+    api.HandleFunc("/baiviet/{id}", XoaBaiDang).Methods("DELETE", "OPTIONS")
 
+    // Bình luận
+    api.HandleFunc("/binhluan", ThemBinhLuan).Methods("POST", "OPTIONS")
+    api.HandleFunc("/binhluan/{id}", LayBinhLuanTheoBaiDang).Methods("GET", "OPTIONS")
+    api.HandleFunc("/binhluan/xoa/{id}", XoaBinhLuan).Methods("DELETE", "OPTIONS")
 
-    // ✅ Cổng chạy server
-    serverPort := os.Getenv("PORT")
-    if serverPort == "" {
-        serverPort = "8080"
+    // Cảm xúc
+    api.HandleFunc("/camxuc/{idBaiDang}", ThemCamXuc).Methods("POST", "OPTIONS")
+    api.HandleFunc("/camxuc/thongke/{idBaiDang}", ThongKeCamXuc).Methods("GET", "OPTIONS")
+
+    // Chat
+    api.HandleFunc("/chat/gui", GuiTinNhanHandler).Methods("POST", "OPTIONS")
+    api.HandleFunc("/chat/lichsu/{id1}/{id2}", LayLichSuTinNhanHandler).Methods("GET", "OPTIONS")
+
+    // ============================
+    // 🌐 Tệp tĩnh HTML/JS/CSS
+    // ============================
+    router.PathPrefix("/").Handler(http.FileServer(http.Dir("./docs/"))) // ⚠️ đặt sau cùng
+
+    // ============================
+    // 🏁 Khởi chạy server
+    // ============================
+
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
     }
-    log.Printf("🚀 Server chạy tại cổng %s...\n", serverPort)
 
-    if err := http.ListenAndServe(":"+serverPort, router); err != nil {
-        log.Fatal("❌ Không thể chạy server:", err)
+    log.Printf("🚀 Server đang chạy tại cổng %s...\n", port)
+    if err := http.ListenAndServe(":"+port, router); err != nil {
+        log.Fatal("❌ Không thể khởi động server:", err)
     }
 }

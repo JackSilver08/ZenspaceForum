@@ -8,13 +8,13 @@
     <link
       rel="icon"
       sizes="132x132"
-      href="IMG/Zenpacia 4.0.png"
+      href="IMG/Zenpalog.png"
       type="image/x-icon"
     />
   </head>
   <body>
     <header>
-      <a href="index.html"><img src="IMG/Zenpacia 4.0.png" alt="Logo" /></a>
+      <a href="index.html"><img src="IMG/Zenpalog.png" alt="Logo" /></a>
 
       <div class="search-container">
         <input id="search-box" type="search" placeholder="Nhập từ khóa..." />
@@ -141,13 +141,24 @@
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        const userId = localStorage.getItem("idTaiKhoan");
         const token = localStorage.getItem("token");
+        let userId = null;
+
         const accountInfoBtn = document.getElementById("accountInfoBtn");
         const avatarImg = document.getElementById("userAvatarImg");
         const welcomeText = document.getElementById("welcomeText");
         const userDropdown = document.getElementById("userAvatarDropdown");
         const danhSach = document.getElementById("danhSachBaiDang");
+
+        if (token) {
+          try {
+            const decoded = JSON.parse(atob(token.split(".")[1]));
+            userId = decoded?.id || null;
+          } catch (e) {
+            console.error("Lỗi decode token:", e);
+          }
+        }
+
         // 👉 Nếu chưa đăng nhập
         if (!userId || !token) {
           userDropdown.style.display = "none";
@@ -157,12 +168,9 @@
         // 👉 Bọc async hàm xử lý thông tin người dùng
         (async () => {
           try {
-            const res = await fetch(
-              `http://localhost:8080/api/nguoidung/${userId}`,
-              {
-                headers: { Authorization: "Bearer " + token },
-              }
-            );
+            const res = await fetch(`/api/nguoidung/${userId}`, {
+              headers: { Authorization: "Bearer " + token },
+            });
             if (!res.ok) throw new Error("Phản hồi không hợp lệ");
             const data = await res.json();
 
@@ -173,7 +181,6 @@
             }
 
             const user = data.data.user;
-
             const avatar =
               user.avatar && user.avatar.trim() !== ""
                 ? user.avatar
@@ -182,15 +189,13 @@
             avatarImg.src = avatar;
             welcomeText.textContent = `Chào ${user.tenDangNhap || "bạn"}!`;
             userDropdown.style.display = "flex";
-
-            // 👉 Tại đây có thể dùng `user` an toàn: mở chat, kiểm tra quyền...
           } catch (err) {
             console.error("❌ Lỗi khi tải thông tin người dùng:", err.message);
             userDropdown.style.display = "none";
           }
         })();
 
-        // 👉 Sự kiện click vào ảnh đại diện → về trang cá nhân
+        // 👉 Click ảnh đại diện → về trang cá nhân
         accountInfoBtn.addEventListener("click", (e) => {
           e.preventDefault();
           if (userId) {
@@ -201,40 +206,25 @@
         });
 
         // 👉 Gọi API để tải danh sách bài viết
-        fetch("http://localhost:8080/LayBaiDang")
-          .then((res) => res.json())
+        fetch("/api/baiviet")
+          .then(async (res) => {
+            if (!res.ok) {
+              const errText = await res.text();
+              throw new Error("Phản hồi không hợp lệ: " + errText);
+            }
+            return res.json();
+          })
           .then((data) => {
-            danhSach.innerHTML = "";
-            data.forEach((bai) => {
-              const button = document.createElement("button");
-              button.textContent = bai.tieuDe;
-              button.onclick = () => {
-                window.location.href = `BaiViet.html?id=${bai.id}`;
-              };
-              button.className = "btn-tieu-de";
-              button.style.cssText = `
-          display: block;
-          margin-bottom: 10px;
-          padding: 12px;
-          width: 100%;
-          text-align: left;
-          font-size: 16px;
-          background-color: #fff;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          cursor: pointer;
-        `;
-              danhSach.appendChild(button);
-            });
+            // xử lý như cũ
           })
           .catch((err) => {
-            console.error("❌ Lỗi tải bài viết:", err);
+            console.error("❌ Lỗi tải bài viết:", err.message);
             danhSach.textContent = "Không thể tải danh sách bài viết.";
           });
       });
     </script>
 
     <script src="JS/index.js"></script>
-    <script src="JS/DangBai.js"></script>
+    <script src="/JS/DangBai.js?v=20250628_nginx" defer></script>
   </body>
 </html>

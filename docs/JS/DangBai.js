@@ -4,6 +4,7 @@ let token = null;
 
 document.addEventListener("DOMContentLoaded", function () {
   refreshUserInfo(); // 🛠 nạp token ngay lập tức sau khi DOM sẵn sàng
+  loadBaiDang();
   const form = document.querySelector("#popupForm form");
   const popupOverlay = document.getElementById("popupOverlay");
   const closeBtn = document.getElementById("closePopupBtn");
@@ -27,13 +28,25 @@ document.addEventListener("DOMContentLoaded", function () {
   async function loadBaiDang() {
     refreshUserInfo();
     try {
-      const res = await fetch("http://localhost:8080/LayBaiDang");
-      const data = await res.json();
+      const res = await fetch("/api/baiviet");
+      const json = await res.json();
+
+      console.log("📦 Dữ liệu từ API:", json);
+
+      if (!json?.success) {
+        console.error("❌ API báo lỗi:", json);
+        return;
+      }
+
+      const danhSach = json.data;
+      if (!Array.isArray(danhSach)) {
+        console.error("❌ 'data' không phải là mảng:", danhSach);
+        return;
+      }
 
       const container = document.getElementById("danhSachBaiDang");
       container.innerHTML = "";
-
-      data.forEach(async (bai) => {
+      for (const bai of danhSach) {
         const baiVietDiv = document.createElement("div");
         baiVietDiv.className = "bai-viet";
         baiVietDiv.style.marginBottom = "15px";
@@ -42,9 +55,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         let camXucHTML = "";
         try {
-          const resCamXuc = await fetch(
-            `http://localhost:8080/ThongKeCamXuc/${bai.id}`
-          );
+          const resCamXuc = await fetch(`/api/ThongKeCamXuc/${bai.id}`);
           const camXucData = await resCamXuc.json();
           const emojiMap = {
             like: "👍",
@@ -64,82 +75,76 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         let html = `
-  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-    <div class="noi-dung-bai" style="flex-grow: 1; cursor: pointer;">
-      <h3 style="margin: 0 0 5px 0;">${bai.tieuDe}</h3>
-      <p style="margin: 0 0 5px 0; color: #555;">
-        ${bai.noiDung.substring(0, 100)}...
-      </p>
-      <small style="color: #888;">
-        Đăng bởi: ${bai.tenDangNhap} - ${bai.ngayDang}
-      </small>
-      <div style="margin-top: 10px; font-size: 18px;">
-        ${camXucHTML}
-      </div>
-    </div>`;
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div class="noi-dung-bai" style="flex-grow: 1; cursor: pointer;">
+            <h3 style="margin: 0 0 5px 0;">${bai.tieuDe}</h3>
+            <p style="margin: 0 0 5px 0; color: #555;">
+              ${bai.noiDung.substring(0, 100)}...
+            </p>
+            <small style="color: #888;">
+              Đăng bởi: ${bai.tenDangNhap} - ${bai.ngayTao}
+            </small>
+            <div style="margin-top: 10px; font-size: 18px;">
+              ${camXucHTML}
+            </div>
+          </div>`;
 
         if (
           currentRole === "admin" ||
           parseInt(bai.idTaiKhoan) === currentUserId
         ) {
           html += `
-    <div>
-      ${
-        parseInt(bai.idTaiKhoan) === currentUserId
-          ? `<button class="btn-sua" data-id="${bai.id}" 
-               style="margin-left: 10px; padding: 5px 10px; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">
-               Sửa
-             </button>`
-          : ""
-      }
-      <button class="btn-xoa" data-id="${bai.id}" 
-        style="margin-left: 10px; padding: 5px 10px; background-color: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer;">
-        Xóa
-      </button>
-    </div>`;
+          <div>
+            ${
+              parseInt(bai.idTaiKhoan) === currentUserId
+                ? `<button class="btn-sua" data-id="${bai.id}" 
+                     style="margin-left: 10px; padding: 5px 10px; background-color: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">
+                     Sửa
+                   </button>`
+                : ""
+            }
+            <button class="btn-xoa" data-id="${bai.id}" 
+              style="margin-left: 10px; padding: 5px 10px; background-color: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Xóa
+            </button>
+          </div>`;
         }
 
         html += `
-  </div>
-<div class="emoji-container">
-  <div class="react-wrapper">
-    <button class="react-toggle">😊</button>
-    <div class="emoji-popover">
-      <button class="emoji" data-type="like">👍</button>
-      <button class="emoji" data-type="love">❤️</button>
-      <button class="emoji" data-type="haha">😂</button>
-      <button class="emoji" data-type="wow">😮</button>
-      <button class="emoji" data-type="sad">😢</button>
-      <button class="emoji" data-type="angry">😠</button>
-    </div>
-  </div>
-</div>
+        </div>
+        <div class="emoji-container">
+          <div class="react-wrapper">
+            <button class="react-toggle">😊</button>
+            <div class="emoji-popover">
+              <button class="emoji" data-type="like">👍</button>
+              <button class="emoji" data-type="love">❤️</button>
+              <button class="emoji" data-type="haha">😂</button>
+              <button class="emoji" data-type="wow">😮</button>
+              <button class="emoji" data-type="sad">😢</button>
+              <button class="emoji" data-type="angry">😠</button>
+            </div>
+          </div>
+        </div>`;
 
-
-`;
         baiVietDiv.innerHTML = html;
-        // 👉 Gắn sự kiện cho các emoji trong popover
+
+        // Sự kiện emoji
         baiVietDiv.querySelectorAll(".emoji").forEach((btn) => {
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const loaiCamXuc = btn.dataset.type;
             const idBaiDang = bai.id;
-
             try {
-              const response = await fetch(
-                `http://localhost:8080/ThemCamXuc/${idBaiDang}`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: "Bearer " + token,
-                  },
-                  body: JSON.stringify({ loaiCamXuc }),
-                }
-              );
-
+              const response = await fetch(`/api/ThemCamXuc/${idBaiDang}`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + token,
+                },
+                body: JSON.stringify({ loaiCamXuc }),
+              });
               if (response.ok) {
-                loadBaiDang(); // hoặc chỉ cập nhật lại cảm xúc nếu muốn nhanh
+                loadBaiDang();
               } else {
                 const errText = await response.text();
                 alert("Lỗi: " + errText);
@@ -150,152 +155,70 @@ document.addEventListener("DOMContentLoaded", function () {
           });
         });
 
-        // 👉 Xem chi tiết
+        // Sự kiện xem chi tiết
         baiVietDiv
           .querySelector(".noi-dung-bai")
           .addEventListener("click", (e) => {
-            if (e.target.closest(".btn-sua, .btn-xoa, .btn-react")) return; // 👈 nếu nhấn nút thì không chuyển trang
+            if (e.target.closest(".btn-sua, .btn-xoa, .btn-react")) return;
             window.location.href = `baiviet.html?id=${bai.id}`;
           });
+        // Sự kiện sửa
+        const btnSua = baiVietDiv.querySelector(".btn-sua");
+        if (btnSua) {
+          btnSua.addEventListener("click", async (e) => {
+            e.stopPropagation();
 
-        // 👉 Xóa
+            // Lấy bài viết cần sửa
+            const idBaiDang = btnSua.dataset.id;
+
+            try {
+              const res = await fetch(`/api/baiviet/${idBaiDang}`);
+              const bai = await res.json();
+              if (!bai.success) {
+                alert("Không thể tải bài viết để sửa.");
+                return;
+              }
+
+              // Hiển thị form sửa với dữ liệu hiện có
+              document.getElementById("title").value = bai.data.tieuDe;
+              document.getElementById("content").value = bai.data.noiDung;
+              popupOverlay.style.display = "block";
+              form.dataset.editingId = idBaiDang;
+              form.querySelector("button[type='submit']").textContent =
+                "Cập nhật bài viết";
+            } catch (err) {
+              alert("Lỗi khi tải bài viết để sửa.");
+            }
+          });
+        }
+        // Sự kiện xoá
         const btnXoa = baiVietDiv.querySelector(".btn-xoa");
-
         if (btnXoa) {
           btnXoa.addEventListener("click", async (e) => {
             e.stopPropagation();
             if (!confirm("Bạn có chắc chắn muốn xóa bài viết này?")) return;
-            refreshUserInfo(); // 👈 thêm dòng này trước khi gọi fetch xoá!
-            console.log("🔐 Token đang dùng để xoá:", token);
-            console.log("🎟️ Token:", token);
-            console.log("👤 Role:", currentRole);
-            console.log("🪪 User ID:", currentUserId);
-            console.log(
-              "📤 Gửi đến:",
-              `http://localhost:8080/XoaBaiDang/${bai.id}`
-            );
-
             try {
-              const response = await fetch(
-                `http://localhost:8080/XoaBaiDang/${bai.id}`,
-                {
-                  method: "DELETE",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: "Bearer " + token,
-                  },
-                }
-              );
-
-              // 👉 Phân biệt rõ response.ok và response.status
-              if (!response.ok) {
-                const text = await response.text(); // đọc dưới dạng chuỗi
-                throw new Error(`Lỗi ${response.status}: ${text}`);
-              }
-
-              const data = await response.json();
-              if (data.success) {
-                alert("✅ Đã xóa bài thành công!");
-                baiVietDiv.remove();
-              } else {
-                alert("❌ Xóa thất bại: " + data.message);
-              }
-            } catch (err) {
-              console.error("Lỗi khi gửi yêu cầu xóa:", err);
-            }
-          });
-        }
-
-        // 👉 Cảm xúc
-        baiVietDiv.querySelectorAll(".btn-react").forEach((btn) => {
-          btn.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            const loaiCamXuc = btn.dataset.type;
-            const idBaiDang = btn.dataset.id;
-
-            try {
-              const response = await fetch(
-                `http://localhost:8080/ThemCamXuc/${idBaiDang}`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: "Bearer " + token,
-                  },
-                  body: JSON.stringify({ loaiCamXuc }),
-                }
-              );
-
-              if (response.ok) {
+              const res = await fetch(`/api/baiviet/${bai.id}`, {
+                method: "DELETE",
+                headers: {
+                  Authorization: "Bearer " + token,
+                },
+              });
+              const result = await res.json();
+              if (result.success) {
+                alert("✅ Đã xoá bài viết!");
                 loadBaiDang();
               } else {
-                const errText = await response.text();
-                alert("Lỗi: " + errText);
+                alert("❌ Xoá thất bại: " + (result.message || "Lỗi không rõ"));
               }
             } catch (err) {
-              alert("Không thể gửi cảm xúc");
+              alert("Không thể kết nối tới server để xoá bài viết.");
             }
-          });
-        });
-        const btnSua = baiVietDiv.querySelector(".btn-sua");
-        if (btnSua) {
-          btnSua.addEventListener("click", (e) => {
-            e.stopPropagation(); // 👈 ngăn sự kiện "lan lên" vùng cha
-            e.preventDefault();
-            const popup = document.getElementById("popupSuaBai");
-            const inputTieuDe = document.getElementById("popupEditTitle");
-            const inputNoiDung = document.getElementById("popupEditContent");
-            const btnLuu = document.getElementById("btnLuuSua");
-            const btnHuy = document.getElementById("btnHuySua");
-
-            inputTieuDe.value = bai.tieuDe;
-            inputNoiDung.value = bai.noiDung;
-            popup.style.display = "flex"; // hoặc "block" nếu không cần căn giữa
-            popup.style.visibility = "visible";
-            popup.style.opacity = "1";
-            popup.style.pointerEvents = "auto";
-
-            btnLuu.onclick = async () => {
-              const tieuDeMoi = inputTieuDe.value.trim();
-              const noiDungMoi = inputNoiDung.value.trim();
-              if (!tieuDeMoi || !noiDungMoi) {
-                alert("Không được để trống!");
-                return;
-              }
-
-              try {
-                const res = await fetch(
-                  `http://localhost:8080/SuaBaiDang/${bai.id}`,
-                  {
-                    method: "PUT",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: "Bearer " + token,
-                    },
-                    body: JSON.stringify({
-                      tieuDe: tieuDeMoi,
-                      noiDung: noiDungMoi,
-                    }),
-                  }
-                );
-
-                const result = await res.json();
-                alert(result.message || "Đã sửa bài viết!");
-                popup.style.display = "none";
-                loadBaiDang();
-              } catch (err) {
-                alert("Không thể gửi yêu cầu sửa.");
-              }
-            };
-
-            btnHuy.onclick = () => {
-              popup.style.display = "none";
-            };
           });
         }
 
         container.appendChild(baiVietDiv);
-      });
+      }
     } catch (err) {
       console.error("Lỗi khi tải bài viết:", err);
       document.getElementById("danhSachBaiDang").textContent =
@@ -303,40 +226,73 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  loadBaiDang();
-
-  // 👉 Submit đăng bài
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
-    const TieuDe = document.getElementById("title").value;
-    const NoiDung = document.getElementById("content").value;
+
+    const TieuDe = document.getElementById("title").value.trim();
+    const NoiDung = document.getElementById("content").value.trim();
+
+    if (!TieuDe || !NoiDung) {
+      alert("Vui lòng nhập đầy đủ tiêu đề và nội dung.");
+      return;
+    }
+
+    const editingId = form.dataset.editingId;
 
     try {
-      const response = await fetch("http://localhost:8080/DangBai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
-        body: JSON.stringify({ TieuDe, NoiDung }),
-      });
+      if (editingId) {
+        // 👉 Chế độ cập nhật
+        const res = await fetch(`/api/baiviet/${editingId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ TieuDe, NoiDung }),
+        });
 
-      if (response.ok) {
-        alert("Đăng bài thành công!");
-        form.reset();
-        popupOverlay.style.display = "none";
-        loadBaiDang();
+        const result = await res.json();
+        if (result.success) {
+          alert("✅ Cập nhật bài viết thành công!");
+          form.querySelector("button[type='submit']").textContent = "Đăng bài";
+          delete form.dataset.editingId;
+        } else {
+          alert("❌ Cập nhật thất bại: " + (result.message || "Lỗi không rõ"));
+          return;
+        }
       } else {
-        const error = await response.text();
-        alert("Lỗi: " + error);
+        // 👉 Chế độ đăng mới
+        const res = await fetch("/api/baiviet", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ TieuDe, NoiDung }),
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert("✅ Đăng bài thành công!");
+        } else {
+          alert("❌ Đăng thất bại: " + (result.message || "Lỗi không rõ"));
+          return;
+        }
       }
+
+      form.reset();
+      popupOverlay.style.display = "none";
+      loadBaiDang();
     } catch (err) {
       alert("Không thể kết nối tới server");
+      console.error(err);
     }
   });
 
-  // 👉 Đóng popup
   closeBtn.addEventListener("click", function () {
     popupOverlay.style.display = "none";
+    form.reset();
+    delete form.dataset.editingId;
+    form.querySelector("button[type='submit']").textContent = "Đăng bài";
   });
 });

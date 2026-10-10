@@ -13,6 +13,7 @@ import (
 
 
 
+
 const (
 	defaultAvatar = "IMG/ZenUser.png"
 )
@@ -67,7 +68,7 @@ func DangKy(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    db, err := sql.Open("mysql", "root:Tuan@1234@tcp(127.0.0.1:3306)/ZenSpaceDB")
+    db, err := sql.Open("mysql", "root:Tuan@1234@tcp(db:3306)/ZenSpaceDB?parseTime=true")
     if err != nil {
         http.Error(w, "Không thể kết nối database", http.StatusInternalServerError)
         return
@@ -160,7 +161,7 @@ func LayThongTinNguoiDung(w http.ResponseWriter, r *http.Request) {
      // CORS headers
     w.Header().Set("Access-Control-Allow-Origin", "*")
     w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-    w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+    w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
     w.Header().Set("Content-Type", "application/json")
 
     if r.Method == http.MethodOptions {
@@ -168,15 +169,15 @@ func LayThongTinNguoiDung(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if r.Method != http.MethodPost {
-        http.Error(w, "Chỉ chấp nhận POST", http.StatusMethodNotAllowed)
+    if r.Method != http.MethodGet {
+        http.Error(w, "Chỉ chấp nhận GET", http.StatusMethodNotAllowed)
         return
     }
 
     vars := mux.Vars(r)
     id := vars["id"]
 
-    db, err := sql.Open("mysql", "root:Tuan@1234@tcp(127.0.0.1:3306)/ZenSpaceDB")
+    db, err := sql.Open("mysql","root:Tuan@1234@tcp(db:3306)/ZenSpaceDB?parseTime=true")
     if err != nil {
         json.NewEncoder(w).Encode(map[string]interface{}{
             "success": false,
@@ -196,23 +197,24 @@ func LayThongTinNguoiDung(w http.ResponseWriter, r *http.Request) {
         Avatar      sql.NullString
     }
 
-    err = db.QueryRow(`
-        SELECT 
-            id, 
-            tenDangNhap, 
-            email, 
-            phanQuyen, 
-            ngayTao, 
-            avatar 
-        FROM TaiKhoan 
-        WHERE id = ?`, id).Scan(
-        &user.ID,
-        &user.TenDangNhap,
-        &user.Email,
-        &user.PhanQuyen,
-        &user.NgayTao,
-        &user.Avatar,
-    )
+   err = db.QueryRow(`
+    SELECT 
+        id, 
+        tenDangNhap, 
+        email, 
+        phanQuyen, 
+        ngayTao, 
+        avatar 
+    FROM TaiKhoan 
+    WHERE id = ?`, id).Scan(
+    &user.ID,
+    &user.TenDangNhap,
+    &user.Email,
+    &user.PhanQuyen,
+    &user.NgayTao,
+    &user.Avatar,
+)
+
 
     if err != nil {
         if err == sql.ErrNoRows {
@@ -296,7 +298,7 @@ func DangNhap(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    db, err := sql.Open("mysql", "root:Tuan@1234@tcp(127.0.0.1:3306)/ZenSpaceDB")
+    db, err := sql.Open("mysql", "root:Tuan@1234@tcp(db:3306)/ZenSpaceDB")
     if err != nil {
         http.Error(w, "Database connection error", http.StatusInternalServerError)
         return

@@ -45,9 +45,12 @@ function hienThiDanhSachBaiDang(dsBaiDang) {
     };
 
     const meta = document.createElement("div");
-    meta.textContent = `Đăng bởi: ${bai.tenDangNhap || "Ẩn danh"} - ${
-      bai.ngayDang || ""
-    }`;
+    const ngayDang = bai.ngayDang
+      ? new Date(bai.ngayDang).toLocaleString("vi-VN")
+      : "";
+    meta.textContent = `Đăng bởi: ${
+      bai.tenDangNhap || "Ẩn danh"
+    } - ${ngayDang}`;
     meta.style.color = "#888";
     meta.style.fontSize = "13px";
     meta.style.marginBottom = "10px";
@@ -109,7 +112,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Hàm kiểm tra bài mới
   async function kiemTraBaiMoi() {
     try {
-      const data = await fetchJSON("http://localhost:8080/LayBaiDang");
+      const data = await fetchJSON("/api/baiviet");
+
       if (!Array.isArray(data) || data.length === 0) return;
 
       const latestPost = data[0];
@@ -210,25 +214,33 @@ document.addEventListener("DOMContentLoaded", () => {
   // Xử lý sự kiện click nút thông báo
   if (thongBaoBtn) {
     thongBaoBtn.addEventListener("click", async () => {
-      const data = await fetchJSON("http://localhost:8080/LayBaiDang");
+      const data = await fetchJSON("/api/baiviet");
       if (data && data.length > 0) {
-        localStorage.setItem("lastSeenPostId", data[0].id);
+        // ĐỪNG cập nhật lastSeenPostId ở đây
+        // chỉ tắt số thông báo và hiển thị danh sách
         soThongBao.textContent = "";
         thongBaoContainer.style.display = "none";
         isShowingNotification = false;
 
-        // Highlight các bài viết mới trên trang
-        const newPosts = data.filter(
-          (post) =>
-            post.id > (parseInt(localStorage.getItem("lastSeenPostId")) || 0)
-        );
+        // Lọc bài mới
+        const lastSeenId =
+          parseInt(localStorage.getItem("lastSeenPostId")) || 0;
+        const newPosts = data.filter((post) => post.id > lastSeenId);
         if (newPosts.length > 0) {
-          hienThiDanhSachBaiDang(data); // Sử dụng hàm hiển thị có sẵn
-          window.scrollTo(0, 0); // Cuộn lên đầu trang
+          hienThiDanhSachBaiDang(data);
+          window.scrollTo(0, 0);
         }
       }
     });
   }
+  fetchJSON("/api/baiviet")
+    .then((data) => {
+      console.log("📦 Bài viết lấy được:", data);
+      hienThiDanhSachBaiDang(data);
+    })
+    .catch((err) => {
+      console.error("Không thể lấy danh sách bài viết:", err.message);
+    });
 
   // Kiểm tra bài mới mỗi 15 giây
   setInterval(kiemTraBaiMoi, 15000);
@@ -248,6 +260,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const userAvatarImg = document.getElementById("userAvatarImg");
     if (userAvatarImg) {
+      const avatarUrl = localStorage.getItem("avatarUrl") || "IMG/ZenUser.png";
+      console.log("Setting avatar to:", avatarUrl);
+
+      userAvatarImg.src = avatarUrl;
+      userAvatarImg.onerror = function () {
+        console.error("Failed to load avatar, using fallback");
+        this.src = "IMG/ZenUser.png"; // Fallback
+      };
+    }
+    if (userAvatarImg) {
       if (avatarUrl && avatarUrl.trim() !== "") {
         const img = new Image();
         img.onload = () => {
@@ -257,7 +279,8 @@ document.addEventListener("DOMContentLoaded", () => {
           console.warn("Ảnh avatar không tải được, dùng ảnh mặc định.");
           userAvatarImg.src = "IMG/ZenUser.png"; // ✅ đúng với cấu trúc thư mục
         };
-        console.log("Avatar URL đang được set là:", avatarUrl);
+        console.log("Avatar path:", avatarUrl);
+        console.log("User avatar div exists:", !!userAvatarImg);
         img.src = avatarUrl;
       } else {
         userAvatarImg.src = "IMG/ZenUser.png"; // ✅ đúng với cấu trúc thư mục
@@ -337,9 +360,13 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       const meta = document.createElement("div");
-      meta.textContent = `Đăng bởi ${bai.tenDangNhap || "Ẩn danh"} - ${
-        bai.ngayDang || ""
-      }`;
+      const ngayDang = bai.ngayDang
+        ? new Date(bai.ngayDang).toLocaleString("vi-VN")
+        : "";
+      meta.textContent = `Đăng bởi ${
+        bai.tenDangNhap || "Ẩn danh"
+      } - ${ngayDang}`;
+
       meta.style.color = "#888";
       meta.style.fontSize = "13px";
 
@@ -378,17 +405,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Hàm fetch JSON tiện lợi
   function fetchJSON(url) {
-    return fetch(url).then((res) => {
-      if (!res.ok) throw new Error("Lỗi khi gọi API");
-      return res.json();
+    return fetch(url).then(async (res) => {
+      const contentType = res.headers.get("content-type");
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status} - ${text}`);
+      }
+
+      if (contentType && contentType.includes("application/json")) {
+        return res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(`Không phải dữ liệu JSON: ${text}`);
+      }
     });
   }
 
   // Tải bài viết ban đầu
-  fetchJSON("http://localhost:8080/LayBaiDang")
-    .then((data) => {
-      danhSachBaiViet = data;
-      hienThiBaiViet(danhSachBaiViet);
+  fetchJSON("/api/baiviet")
+    .then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        danhSachBaiViet = res.data;
+        hienThiBaiViet(danhSachBaiViet);
+      } else {
+        console.error("❌ Dữ liệu bài viết trả về không hợp lệ:", res);
+      }
     })
     .catch((err) => {
       console.error("Lỗi khi tải bài viết:", err);
@@ -407,19 +449,30 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Tìm trong tiêu đề bài viết
-      const ketQuaBai = danhSachBaiViet.filter((bai) =>
-        bai.tieuDe.toLowerCase().includes(tuKhoa)
-      );
+      let ketQuaBai = [];
+      if (Array.isArray(danhSachBaiViet)) {
+        ketQuaBai = danhSachBaiViet.filter((bai) =>
+          bai.tieuDe.toLowerCase().includes(tuKhoa)
+        );
+      }
+
       hienThiBaiViet(ketQuaBai);
 
       // Gọi API tìm người dùng
-      fetchJSON(
-        `http://localhost:8080/api/timkiemnguoidung?key=${encodeURIComponent(
-          tuKhoa
-        )}`
-      )
-        .then((users) => {
-          hienThiNguoiDung(users);
+      fetchJSON(`/api/timkiemnguoidung?key=${encodeURIComponent(tuKhoa)}`)
+        .then((response) => {
+          console.log("Response từ API:", response);
+          if (!response) {
+            console.error("Response null hoặc undefined");
+            userResultDiv.innerHTML = "";
+            return;
+          }
+
+          if (response.success) {
+            hienThiNguoiDung(response.data);
+          } else {
+            userResultDiv.innerHTML = ""; // không có kết quả
+          }
         })
         .catch((err) => {
           console.error("Lỗi tìm người dùng:", err);
@@ -432,7 +485,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function xoaBaiViet(id) {
   if (!confirm("Bạn có chắc muốn xóa bài viết này?")) return;
 
-  fetch(`http://localhost:8080/XoaBaiDang/${id}`, {
+  fetch(`/api/baiviet/${id}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${localStorage.getItem("token")}`, // nếu bạn cần xác thực token
@@ -478,9 +531,11 @@ function hienThiTimKiemDonGian(dsBaiDang) {
     };
 
     const meta = document.createElement("div");
-    meta.textContent = `Đăng bởi ${bai.tenDangNhap || "Ẩn danh"} - ${
-      bai.ngayDang || ""
-    }`;
+    const ngayDang = bai.ngayDang
+      ? new Date(bai.ngayDang).toLocaleString("vi-VN")
+      : "";
+    meta.textContent = `Đăng bởi ${bai.tenDangNhap || "Ẩn danh"} - ${ngayDang}`;
+
     meta.style.color = "#888";
     meta.style.fontSize = "13px";
 

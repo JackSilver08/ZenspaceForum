@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+
 type BinhLuan struct {
 	ID          int    `json:"id,omitempty"`
 	IDBaiDang   int    `json:"idBaiDang"`
@@ -28,7 +29,7 @@ func LayBinhLuanTheoBaiDang(w http.ResponseWriter, r *http.Request) {
 	rows, err := DB.Query(`
   SELECT b.id, b.idBaiDang, b.idTaiKhoan, b.noiDung, t.tenDangNhap, b.ngayBinhLuan
   FROM binhluan b
-  JOIN taikhoan t ON b.idTaiKhoan = t.id
+  JOIN TaiKhoan t ON b.idTaiKhoan = t.id
   WHERE b.idBaiDang = ?
   ORDER BY b.ngayBinhLuan ASC
 `, idBaiDang)
@@ -39,7 +40,7 @@ func LayBinhLuanTheoBaiDang(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var binhLuans []BinhLuan
+	var BinhLuans []BinhLuan
 	for rows.Next() {
 		var bl BinhLuan
 		if err := rows.Scan(&bl.ID, &bl.IDBaiDang, &bl.IDTaiKhoan, &bl.NoiDung, &bl.TenDangNhap, &bl.NgayBinhLuan); err != nil {
@@ -49,14 +50,14 @@ func LayBinhLuanTheoBaiDang(w http.ResponseWriter, r *http.Request) {
 }
 
 
-		binhLuans = append(binhLuans, bl)
+		BinhLuans = append(BinhLuans, bl)
 	}
-if binhLuans == nil {
-    binhLuans = []BinhLuan{}
+if BinhLuans == nil {
+    BinhLuans = []BinhLuan{}
 }
 
 w.Header().Set("Content-Type", "application/json")
-json.NewEncoder(w).Encode(binhLuans)
+json.NewEncoder(w).Encode(BinhLuans)
 
 }
 

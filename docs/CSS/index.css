@@ -1,5 +1,5 @@
 body {
-  background-color: #001f3f; /* hoặc #002244 tuỳ ý */
+  background-color: #002f5f; /* hoặc #002244 tuỳ ý */
 }
 
 /* === RESET CƠ BẢN === */
@@ -71,7 +71,7 @@ header img {
 
 /* === MAIN === */
 main {
-  background-color: #001f3f; /* nền xanh dương đậm */
+  background-color: #002f5f; /* nền xanh dương đậm */
   color: white;
   font-family: "Segoe UI", sans-serif;
   max-width: 800px;

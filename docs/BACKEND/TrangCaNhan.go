@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -26,14 +29,14 @@ type BaiViet struct {
 	ID       int    `json:"id"`
 	TieuDe   string `json:"tieuDe"`
 	NoiDung  string `json:"noiDung"`
-	NgayDang string `json:"ngayDang"` // ISO8601, ví dụ: 2023-06-21T15:04:05Z
+	NgayTao string `json:"ngayTao"` // ISO8601, ví dụ: 2023-06-21T15:04:05Z
 }
 
 // Hàm tiện ích set header CORS chuẩn
 func setCorsHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*") // bạn có thể thay bằng domain cụ thể
-	w.Header().Set("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    w.Header().Set("Access-Control-Allow-Origin", "*") // hoặc thay "*" bằng "http://zenpacia.io.vn"
+    w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 }
 
 // Hàm tiện ích trả JSON chuẩn
@@ -76,7 +79,7 @@ func TrangCaNhanHandler(w http.ResponseWriter, r *http.Request) {
     var avatar sql.NullString
     err = DB.QueryRow(`
         SELECT id, tenDangNhap, email, avatar, phanQuyen
-        FROM taikhoan
+        FROM TaiKhoan
         WHERE id = ?`, userID).
         Scan(&nguoiDung.ID, &nguoiDung.HoTen, &nguoiDung.Email, &avatar, &nguoiDung.PhanQuyen)
     if err != nil {
@@ -101,10 +104,10 @@ func TrangCaNhanHandler(w http.ResponseWriter, r *http.Request) {
 
     // Truy vấn các bài viết
     rows, err := DB.Query(`
-        SELECT id, tieuDe, noiDung, ngayDang
-        FROM baidang
+        SELECT id, tieuDe, noiDung, ngayTao
+        FROM BaiDang
         WHERE idTaiKhoan = ?
-        ORDER BY ngayDang DESC`, userID)
+        ORDER BY ngayTao DESC`, userID)
     if err != nil {
         log.Println("❌ Lỗi query bài viết:", err)
         writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
@@ -123,7 +126,7 @@ func TrangCaNhanHandler(w http.ResponseWriter, r *http.Request) {
             log.Println("❌ Lỗi scan bài viết:", err)
             continue
         }
-        b.NgayDang = ngay.Format(time.RFC3339)
+        b.NgayTao = ngay.Format(time.RFC3339)
         baiVietList = append(baiVietList, b)
     }
 
@@ -171,7 +174,7 @@ func XoaTaiKhoanHandler(w http.ResponseWriter, r *http.Request) {
 
     // Kiểm tra tồn tại
     var exists bool
-    if err := DB.QueryRow("SELECT EXISTS(SELECT 1 FROM taikhoan WHERE id = ?)", userID).Scan(&exists); err != nil || !exists {
+    if err := DB.QueryRow("SELECT EXISTS(SELECT 1 FROM TaiKhoan WHERE id = ?)", userID).Scan(&exists); err != nil || !exists {
         log.Printf("❌ Tài khoản %d không tồn tại hoặc lỗi truy vấn: %v\n", userID, err)
         writeJSON(w, http.StatusNotFound, map[string]interface{}{
             "success": false,
@@ -181,7 +184,7 @@ func XoaTaiKhoanHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // Xoá dữ liệu phụ thuộc theo thứ tự khoá ngoại
-    relatedTables := []string{"cam_xuc", "binhluan", "baidang"}
+    relatedTables := []string{"cam_xuc", "binhluan", "BaiDang"}
     for _, tbl := range relatedTables {
         if _, err := DB.Exec("DELETE FROM "+tbl+" WHERE idTaiKhoan = ?", userID); err != nil {
             log.Printf("❌ Không thể xoá bảng %s của user %d: %v\n", tbl, userID, err)
@@ -205,7 +208,7 @@ if _, err := DB.Exec(`
 }
 
     // Sau cùng: xoá tài khoản
-    if _, err := DB.Exec("DELETE FROM taikhoan WHERE id = ?", userID); err != nil {
+    if _, err := DB.Exec("DELETE FROM TaiKhoan WHERE id = ?", userID); err != nil {
         log.Printf("❌ Không thể xoá tài khoản %d: %v\n", userID, err)
         writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
             "success": false,
@@ -221,17 +224,20 @@ if _, err := DB.Exec(`
 }
 
 
-// PUT /api/nguoidung/{id}/avatar
+// POST /api/nguoidung/{id}/avatar
 func DoiAvatarHandler(w http.ResponseWriter, r *http.Request) {
 	setCorsHeaders(w)
+log.Println("🎯 [uploadAvatar] Handler được gọi")
+log.Println("📨 Method:", r.Method)
+
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	if r.Method != http.MethodPut {
+	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{
 			"success": false,
-			"message": "Chỉ chấp nhận PUT",
+			"message": "Chỉ chấp nhận POST",
 		})
 		return
 	}
@@ -246,58 +252,104 @@ func DoiAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body struct {
-		Avatar string `json:"avatar"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	err = r.ParseMultipartForm(10 << 20) // Giới hạn 10MB
+	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"success": false,
-			"message": "Dữ liệu không hợp lệ",
+			"message": "Không thể đọc form",
 		})
 		return
 	}
 
-	_, err = DB.Exec(`UPDATE taikhoan SET avatar = ? WHERE id = ?`, body.Avatar, userID)
+	file, handler, err := r.FormFile("avatar")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"message": "Không thể đọc file ảnh",
+		})
+		return
+	}
+	defer file.Close()
+
+	// Đọc nội dung file ảnh vào []byte
+	fileBytes, err := io.ReadAll(file)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
 			"success": false,
-			"message": "Không thể cập nhật avatar",
+			"message": "Không thể đọc nội dung ảnh",
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"message": "Đã cập nhật avatar",
-	})
+	// Option 1: Lưu ảnh vào thư mục
+	filename := fmt.Sprintf("avatar_%d_%s", userID, handler.Filename)
+	savePath := "/root/project/backend/uploads/" + filename
+        fmt.Println("📥 Nhận ảnh: ", handler.Filename)
+        fmt.Println("📁 Lưu tại: ", savePath)
+	err = os.WriteFile(savePath, fileBytes, 0644)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"success": false,
+			"message": "Lỗi lưu file ảnh",
+		})
+		return
+	}
+
+	// Cập nhật đường dẫn ảnh trong DB (nếu dùng path tương đối để frontend hiển thị)
+   _, err = DB.Exec("UPDATE TaiKhoan SET avatar = ? WHERE id = ?", "/uploads/"+filename, userID)
+log.Println("⚙️ Đang cập nhật DB với avatar =", "/uploads/"+filename)
+    log.Println("⚙️ Đang cập nhật DB với avatar =", "uploads/"+filename)
+	if err != nil {
+    log.Println("❌ Lỗi UPDATE avatar:", err)
+    writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+        "success": false,
+        "message": "Không thể cập nhật DB: " + err.Error(), // thêm chi tiết lỗi
+    })
+    return
 }
+
+writeJSON(w, http.StatusOK, map[string]interface{}{
+    "success": true,
+    "path":    "uploads/" + filename,
+})
+
+
+}
+
 
 func TimKiemNguoiDung(w http.ResponseWriter, r *http.Request) {
 	setCorsHeaders(w)
+
+	// Cho phép OPTIONS request dùng cho CORS preflight
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
+	// Lấy từ khóa tìm kiếm
 	key := r.URL.Query().Get("key")
 	if key == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"success": false,
-			"message": "Thiếu từ khóa",
+			"message": "Thiếu từ khóa tìm kiếm",
+			"data":    []interface{}{},
 		})
 		return
 	}
 
-	rows, err := DB.Query(`SELECT id, tenDangNhap FROM taikhoan WHERE tenDangNhap LIKE ? LIMIT 10`, "%"+key+"%")
+	// Truy vấn cơ sở dữ liệu
+	rows, err := DB.Query(`SELECT id, tenDangNhap FROM TaiKhoan WHERE tenDangNhap LIKE ? LIMIT 10`, "%"+key+"%")
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
 			"success": false,
-			"message": "Lỗi truy vấn DB",
+			"message": "Lỗi truy vấn cơ sở dữ liệu",
+			"data":    []interface{}{},
 		})
 		return
 	}
 	defer rows.Close()
 
+	// Xử lý kết quả
 	var users []map[string]interface{}
 	for rows.Next() {
 		var id int
@@ -309,8 +361,14 @@ func TimKiemNguoiDung(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	writeJSON(w, http.StatusOK, users)
+	// Trả kết quả về frontend theo chuẩn RESTful
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    users,
+	})
 }
+
+
 
 func GuiTinNhanHandler(w http.ResponseWriter, r *http.Request) {
     setCorsHeaders(w)
