@@ -204,13 +204,15 @@
           rows="3"
           style="width: 100%; resize: none"
         ></textarea>
+        <button id="toggleEmojiBtn">😊</button>
         <button id="guiBinhLuanBtn" style="margin-top: 10px">Gửi</button>
       </div>
 
       <div id="binhLuanContainer"></div>
     </section>
-
     <!-- Script lấy dữ liệu bài viết -->
+    <!-- ✅ Dùng bản emoji-button UMD ổn định (không lỗi) -->
+    <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@3.0.2/dist/index.min.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const idBaiDang = new URLSearchParams(window.location.search).get("id");
@@ -253,6 +255,12 @@
               console.log("📦 Kết quả bài viết:", data);
 
               const bai = data.data || data; // dùng data.data nếu có, còn không thì dùng data luôn
+              if (!bai || !bai.tieuDe) {
+                document.getElementById("tieuDe").textContent =
+                  "Không tìm thấy bài viết";
+                return;
+              }
+              console.log("👉 Nội dung:", bai.noiDung);
               document.getElementById("tieuDe").textContent =
                 bai.tieuDe || "(Không có tiêu đề)";
               document.getElementById("noiDung").innerHTML =
@@ -267,16 +275,43 @@
 
         const binhLuanContainer = document.getElementById("binhLuanContainer");
 
-        // ✅ Hiển thị form bình luận nếu đăng nhập
         if (isLoggedIn && !isNaN(idTaiKhoan)) {
           const formBinhLuan = document.getElementById("formBinhLuan");
+          const textarea = document.getElementById("noiDungBinhLuan");
+          const guiBtn = document.getElementById("guiBinhLuanBtn");
+          const toggleEmojiBtn = document.getElementById("toggleEmojiBtn");
+
           if (formBinhLuan) formBinhLuan.style.display = "block";
 
-          const guiBtn = document.getElementById("guiBinhLuanBtn");
+          // Emoji picker
+          const picker = new EmojiButton({
+            position: "top-start",
+            theme: "light",
+          });
+
+          // 🧠 Hàm chèn emoji vào vị trí con trỏ
+          picker.on("emoji", (emoji) => {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after = text.substring(end, text.length);
+            textarea.value = before + emoji + after;
+
+            // Di chuyển con trỏ sau emoji
+            const newPos = start + emoji.length;
+            textarea.setSelectionRange(newPos, newPos);
+            textarea.focus();
+          });
+
+          // Hiện emoji picker khi bấm nút
+          toggleEmojiBtn?.addEventListener("click", () => {
+            picker.togglePicker(toggleEmojiBtn);
+          });
+
+          // Gửi bình luận
           guiBtn?.addEventListener("click", () => {
-            const noiDung = document
-              .getElementById("noiDungBinhLuan")
-              .value.trim();
+            const noiDung = textarea.value.trim();
             if (!noiDung)
               return alert("Nội dung bình luận không được để trống!");
 
@@ -294,7 +329,8 @@
                 return res.json();
               })
               .then(() => {
-                document.getElementById("noiDungBinhLuan").value = "";
+                textarea.value = "";
+                picker.hidePicker(); // Ẩn emoji picker sau khi gửi
                 taiBinhLuan();
               })
               .catch(() => alert("Không gửi được bình luận"));
@@ -308,7 +344,11 @@
           fetch(`/api/binhluan/${idBaiDang}`)
             .then((res) => res.json())
             .then((data) => {
-              if (!Array.isArray(data))
+              const danhSachBinhLuan = Array.isArray(data.data)
+                ? data.data
+                : data;
+
+              if (!Array.isArray(danhSachBinhLuan))
                 throw new Error("Sai định dạng phản hồi");
 
               let html = `<h3>Bình luận (${data.length})</h3><div>`;
@@ -345,7 +385,7 @@
                   if (!confirm("Bạn chắc chắn muốn xóa bình luận này?")) return;
 
                   try {
-                    const res = await fetch(`/api/XoaBinhLuan/${id}`, {
+                    const res = await fetch(`/api/binhluan/xoa/${id}`, {
                       method: "DELETE",
                       headers: {
                         Authorization:

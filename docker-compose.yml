@@ -1,0 +1,68 @@
+name: zenspace
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Tuan@1234}
+      MYSQL_DATABASE: ZenSpaceDB
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./ZenSpaceDB_latest.sql:/docker-entrypoint-initdb.d/001-zenspace.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  backend:
+    build:
+      context: ./docs/BACKEND
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Tuan@1234}
+      DB_NAME: ZenSpaceDB
+      REDIS_ADDR: redis:6379
+      PORT: "8080"
+    ports:
+      - "8089:80"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./data/uploads:/uploads
+
+  web:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8088:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html:ro
+      - ./docs/BACKEND/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./data/uploads:/uploads:ro
+
+volumes:
+  mysql_data:

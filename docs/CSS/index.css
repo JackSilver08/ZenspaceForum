@@ -1,13 +1,19 @@
 body {
-  background-color: #002f5f; /* hoặc #002244 tuỳ ý */
+  background: linear-gradient(-45deg, #002f5f, #001933, #003366, #002244);
+  animation: gradientMove 15s ease infinite;
+  color: white; /* Đảm bảo chữ dễ đọc */
 }
 
-/* === RESET CƠ BẢN === */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: "Segoe UI", sans-serif;
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* === HEADER === */
@@ -16,14 +22,16 @@ header {
   top: 0;
   left: 0;
   width: 100%;
-  background-color: white; /* đổi từ #002f5f thành trắng */
-  color: #002f5f; /* text/icon đổi thành xanh đậm */
-  padding: 10px 20px;
+  height: 70px; /* ✅ Đặt chiều cao cố định */
+  background-color: white;
+  color: #002f5f;
+  padding: 0 24px; /* padding đều trái phải */
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 1000;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box; /* Đảm bảo padding không làm lệch */
 }
 
 header img {
@@ -38,7 +46,7 @@ header img {
 .search-container input[type="search"] {
   background-color: #003366;
   color: white;
-  width: 95%;
+  width: 85%;
   padding: 8px 14px;
   border: none;
   border-radius: 20px;
@@ -71,18 +79,24 @@ header img {
 
 /* === MAIN === */
 main {
-  background-color: #002f5f; /* nền xanh dương đậm */
-  color: white;
-  font-family: "Segoe UI", sans-serif;
-  max-width: 800px;
-  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.08); /* Kính trong hơn */
+  backdrop-filter: blur(20px) saturate(180%); /* Mờ + bão hòa */
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   padding: 20px;
-  margin-top: 100px; /* ⚠ Đẩy main xuống, KHÔNG bị header che */
+  max-width: 800px;
+  margin: 100px auto;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 main h2 {
-  color: #00bfff;
-  border-bottom: 2px solid #00bfff;
+  color: #d7eaf0;
+  border-bottom: 2px solid #bdd9e2;
   margin-bottom: 20px;
   padding-bottom: 6px;
   margin-top: 20px;
@@ -165,50 +179,89 @@ main h2 {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: #ffffff;
-  color: #000;
-  padding: 24px;
-  border-radius: 12px;
-  width: 340px;
+  background: rgba(75, 138, 184, 0.85); /* tăng độ rõ */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 32px 40px; /* padding hai bên tăng để cân nội dung */
+  width: 520px; /* tăng độ rộng */
+  max-width: 95vw; /* đảm bảo không vượt quá màn hình nhỏ */
   z-index: 1000;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  animation: fadeIn 0.3s ease-in-out;
+  color: #fff; /* chữ trắng cho dễ nhìn với nền */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+#popupForm h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 22px;
+  color: #000000;
+  text-align: center;
 }
 
 #popupForm input,
 #popupForm textarea {
   width: 100%;
-  padding: 8px 10px;
-  margin-top: 8px;
-  margin-bottom: 16px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border 0.3s, box-shadow 0.3s;
 }
 
-#popupForm button[type="submit"],
-#closePopupBtn {
-  padding: 8px 12px;
+#popupForm input:focus,
+#popupForm textarea:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 4px rgba(0, 123, 255, 0.3);
+  outline: none;
+}
+
+#popupForm input[type="file"] {
+  padding: 4px;
+  background: #f1f1f1;
   border: none;
-  border-radius: 6px;
-  font-weight: bold;
+}
+
+#popupForm button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
 #popupForm button[type="submit"] {
   background-color: #28a745;
-  color: white;
+  color: rgb(255, 255, 255);
+  margin-right: 10px;
 }
 
 #popupForm button[type="submit"]:hover {
-  background-color: #1e7e34;
+  background-color: #218838;
 }
 
 #closePopupBtn {
   background-color: #dc3545;
   color: white;
-  margin-left: 10px;
 }
 
 #closePopupBtn:hover {
-  background-color: #b02a37;
+  background-color: #c82333;
 }
 
 .btn-tieu-de {

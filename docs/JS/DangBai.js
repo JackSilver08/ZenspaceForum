@@ -1,7 +1,8 @@
 let currentUserId = null;
 let currentRole = null;
 let token = null;
-
+// Thêm ở đầu file DangBai.js (phạm vi toàn cục)
+let isSubmitting = false;
 document.addEventListener("DOMContentLoaded", function () {
   refreshUserInfo(); // 🛠 nạp token ngay lập tức sau khi DOM sẵn sàng
   loadBaiDang();
@@ -55,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         let camXucHTML = "";
         try {
-          const resCamXuc = await fetch(`/api/ThongKeCamXuc/${bai.id}`);
+          const resCamXuc = await fetch(`/api/camxuc/thongke/${bai.id}`);
           const camXucData = await resCamXuc.json();
           const emojiMap = {
             like: "👍",
@@ -75,19 +76,37 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         let html = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div class="noi-dung-bai" style="flex-grow: 1; cursor: pointer;">
-            <h3 style="margin: 0 0 5px 0;">${bai.tieuDe}</h3>
-            <p style="margin: 0 0 5px 0; color: #555;">
-              ${bai.noiDung.substring(0, 100)}...
-            </p>
-            <small style="color: #888;">
-              Đăng bởi: ${bai.tenDangNhap} - ${bai.ngayTao}
-            </small>
-            <div style="margin-top: 10px; font-size: 18px;">
-              ${camXucHTML}
-            </div>
-          </div>`;
+  <div style="
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    background-color: #ffffff; 
+    padding: 16px; 
+    border-radius: 12px; 
+    margin-bottom: 20px; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1); 
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  " 
+  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';" 
+  onmouseout="this.style.transform='none'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.1)';"
+  >
+
+    <div class="noi-dung-bai" style="flex-grow: 1; cursor: pointer; color: #000; margin-right: 12px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a4d8f;">
+        ${bai.tieuDe}
+      </h3>
+      <p style="margin: 0 0 8px 0; color: #333;">
+        ${bai.noiDung.substring(0, 100)}...
+      </p>
+      <small style="color: #666;">
+        Đăng bởi: ${bai.tenDangNhap} - ${bai.ngayDang}
+      </small>
+      <div style="margin-top: 12px; font-size: 18px; color: #000;">
+        ${camXucHTML}
+      </div>
+    </div>
+  </div>
+`;
 
         if (
           currentRole === "admin" ||
@@ -135,7 +154,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const loaiCamXuc = btn.dataset.type;
             const idBaiDang = bai.id;
             try {
-              const response = await fetch(`/api/ThemCamXuc/${idBaiDang}`, {
+              const response = await fetch(`/api/camxuc/${idBaiDang}`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -226,68 +245,118 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  form.addEventListener("submit", async function (e) {
-    e.preventDefault();
+  // Thêm biến này ở phạm vi toàn cục
+  let submitEventRegistered = false;
 
-    const TieuDe = document.getElementById("title").value.trim();
-    const NoiDung = document.getElementById("content").value.trim();
+  // Trong DOMContentLoaded
+  if (form && !submitEventRegistered) {
+    submitEventRegistered = true; // Đánh dấu đã đăng ký sự kiện
 
-    if (!TieuDe || !NoiDung) {
-      alert("Vui lòng nhập đầy đủ tiêu đề và nội dung.");
-      return;
-    }
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      e.stopPropagation(); // Ngăn chặn sự kiện lan truyền
 
-    const editingId = form.dataset.editingId;
+      const submitBtn = form.querySelector('button[type="submit"]');
 
-    try {
-      if (editingId) {
-        // 👉 Chế độ cập nhật
-        const res = await fetch(`/api/baiviet/${editingId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token,
-          },
-          body: JSON.stringify({ TieuDe, NoiDung }),
-        });
+      // Kiểm tra trạng thái submit chặt chẽ hơn
+      if (isSubmitting || submitBtn.disabled) {
+        console.log("Đang submit, bỏ qua");
+        return;
+      }
 
-        const result = await res.json();
-        if (result.success) {
-          alert("✅ Cập nhật bài viết thành công!");
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Đang xử lý...";
+
+      const TieuDe = document.getElementById("title").value.trim();
+      const NoiDung = document.getElementById("content").value.trim();
+
+      if (!TieuDe || !NoiDung) {
+        alert("Vui lòng nhập đầy đủ tiêu đề và nội dung.");
+        resetSubmitState();
+        return;
+      }
+
+      const editingId = form.dataset.editingId;
+
+      try {
+        if (editingId) {
+          // 👉 Chế độ cập nhật
+          const res = await fetch(`/api/baiviet/${editingId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify({ TieuDe, NoiDung }),
+          });
+
+          const result = await res.json();
+          if (!res.ok) {
+            throw new Error(result.message || "Cập nhật thất bại");
+          }
+
+          showSuccess("Cập nhật bài viết thành công!");
           form.querySelector("button[type='submit']").textContent = "Đăng bài";
           delete form.dataset.editingId;
         } else {
-          alert("❌ Cập nhật thất bại: " + (result.message || "Lỗi không rõ"));
-          return;
-        }
-      } else {
-        // 👉 Chế độ đăng mới
-        const res = await fetch("/api/baiviet", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token,
-          },
-          body: JSON.stringify({ TieuDe, NoiDung }),
-        });
+          // ===== Chế độ đăng mới =====
+          const formData = new FormData();
+          formData.append("tieuDe", TieuDe);
+          formData.append("noiDung", NoiDung);
 
-        const result = await res.json();
-        if (result.success) {
-          alert("✅ Đăng bài thành công!");
-        } else {
-          alert("❌ Đăng thất bại: " + (result.message || "Lỗi không rõ"));
-          return;
+          const fileInput = document.getElementById("media");
+          if (fileInput?.files?.length > 0) {
+            formData.append("file", fileInput.files[0]);
+          }
+
+          const res = await fetch("/api/baiviet", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+
+          const result = await res.json().catch(() => null);
+
+          if (!res.ok || !result?.success) {
+            throw new Error(result?.message || "Đăng bài thất bại");
+          }
+
+          showSuccess("Đăng bài thành công!");
         }
+
+        // Reset form và ẩn popup
+        resetForm();
+      } catch (err) {
+        console.error("Lỗi khi submit:", err);
+        alert("❌ Lỗi: " + (err.message || "Không thể kết nối tới server"));
+      } finally {
+        resetSubmitState();
       }
+    });
+  }
 
-      form.reset();
-      popupOverlay.style.display = "none";
-      loadBaiDang();
-    } catch (err) {
-      alert("Không thể kết nối tới server");
-      console.error(err);
+  // Hàm helper
+  function resetSubmitState() {
+    isSubmitting = false;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = form.dataset.editingId ? "Cập nhật" : "Đăng bài";
     }
-  });
+  }
+
+  function resetForm() {
+    form.reset();
+    const mediaPreview = document.getElementById("mediaPreview");
+    if (mediaPreview) mediaPreview.innerHTML = "";
+    popupOverlay.style.display = "none";
+    loadBaiDang(); // Chỉ gọi loadBaiDang() sau khi mọi thứ hoàn tất
+  }
+
+  function showSuccess(message) {
+    alert("✅ " + message);
+  }
 
   closeBtn.addEventListener("click", function () {
     popupOverlay.style.display = "none";

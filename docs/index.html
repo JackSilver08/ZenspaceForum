@@ -55,8 +55,6 @@
       </div>
     </header>
 
-    <!-- Popup chat -->
-
     <!-- Form pop-up (ẩn ban đầu) -->
     <div
       id="popupOverlay"
@@ -66,20 +64,27 @@
     >
       <div id="popupForm">
         <h3 id="popupTitle">Đăng Bài</h3>
-        <form>
+        <form id="postForm">
           <label for="title">Tiêu đề:</label>
           <input type="text" id="title" name="title" required />
 
           <label for="content">Nội dung:</label>
           <textarea id="content" name="content" rows="4" required></textarea>
 
-          <div style="text-align: right">
+          <label for="media">Hình ảnh hoặc video (tùy chọn):</label>
+          <input type="file" id="media" name="media" accept="image/*,video/*" />
+
+          <!-- Xem trước ảnh/video -->
+          <div id="mediaPreview" style="margin-top: 10px"></div>
+
+          <div style="text-align: right; margin-top: 10px">
             <button type="submit">Gửi</button>
             <button type="button" id="closePopupBtn">Đóng</button>
           </div>
         </form>
       </div>
     </div>
+
     <!-- Thẻ ẩn chứa kết quả API -->
     <div id="response-text" style="display: none"></div>
     <div id="output" style="padding: 10px; color: green"></div>
@@ -224,7 +229,7 @@
       });
     </script>
 
+    <script src="JS/DangBai.js" type="module" defer></script>
     <script src="JS/index.js"></script>
-    <script src="/JS/DangBai.js?v=20250628_nginx" defer></script>
   </body>
 </html>

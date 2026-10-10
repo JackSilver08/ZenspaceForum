@@ -26,6 +26,7 @@ CREATE TABLE `BaiDang` (
   `id` int NOT NULL AUTO_INCREMENT,
   `tieuDe` varchar(255) NOT NULL,
   `noiDung` text NOT NULL,
+  `mediaUrl` varchar(255) DEFAULT NULL,
   `idTaiKhoan` int NOT NULL,
   `ngayTao` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -40,7 +41,7 @@ CREATE TABLE `BaiDang` (
 
 LOCK TABLES `BaiDang` WRITE;
 /*!40000 ALTER TABLE `BaiDang` DISABLE KEYS */;
-INSERT INTO `BaiDang` VALUES (1,'Chào mừng tới Zenpacia','Nơi bạn có thể đăng bài, vui chơi thoải mái\nHẹ hẹ hẹ',1,'2025-06-25 11:53:34'),(4,'Đánh giá','Web chx gì đã bị lỗi rồi',3,'2025-06-28 08:01:54'),(11,'Vạn hạnh mall xin mời các tử sĩ 2k7 ghé chơi','Cung cấp địa chỉ thằng ra đề văn toán',6,'2025-06-28 08:42:08'),(12,'Thử thách của Mr Bít','Mr Bít đang thử thách quay video bạn với Chubby Trà Bông sẽ có những hành động trên 18 tuổi trong vòng 24h\nNếu bạn thắng thử thách bạn sẽ nhận 1 tỷ Venezuela\nCòn chần chờ j nx mà ko đến Hải Phòng - nơi ban phát dân chủ aka thử thách Mr Beast vào 2001 giờ',4,'2025-06-28 09:25:43'),(13,'Web như con kẹt','Web như con kẹt',7,'2025-06-28 10:06:01'),(15,'xin lỗi , web b tuyệt vời lắm 😔','🙂🙂',9,'2025-06-28 11:39:16'),(16,'👽 bị lộ rồi','bị lộ rồi',9,'2025-06-28 11:40:35'),(17,'góp ý','tính năng thả icon ch ổn nha fen, thả xong mà cứ load lại trang :v',11,'2025-06-28 12:23:06'),(18,'Web lồn sửa hoài đéo hết lỗi','Lồn mẹ',1,'2025-06-28 18:20:06'),(19,'This is the official fanpage of Cristiano Ronaldo','Hi guys, I\'m Cristiano Ronaldo. Messi and I are best friends and always compete positively.',12,'2025-06-29 04:36:39'),(20,'Ronaldoooooo','Siuuuuuuuuuuuuuuuu',12,'2025-06-29 04:39:14'),(21,'To Messi','I wonder if Messi uses this platform? I just wanted to say your wife was amazing last night.',12,'2025-06-29 04:42:09');
+INSERT INTO `BaiDang` VALUES (1,'Chào mừng tới Zenpacia','Nơi bạn có thể đăng bài, vui chơi thoải mái\nHẹ hẹ hẹ',NULL,1,'2025-06-25 11:53:34'),(4,'Đánh giá','Web chx gì đã bị lỗi rồi',NULL,3,'2025-06-28 08:01:54'),(11,'Vạn hạnh mall xin mời các tử sĩ 2k7 ghé chơi','Cung cấp địa chỉ thằng ra đề văn toán',NULL,6,'2025-06-28 08:42:08'),(12,'Thử thách của Mr Bít','Mr Bít đang thử thách quay video bạn với Chubby Trà Bông sẽ có những hành động trên 18 tuổi trong vòng 24h\nNếu bạn thắng thử thách bạn sẽ nhận 1 tỷ Venezuela\nCòn chần chờ j nx mà ko đến Hải Phòng - nơi ban phát dân chủ aka thử thách Mr Beast vào 2001 giờ',NULL,4,'2025-06-28 09:25:43'),(13,'Web như con kẹt','Web như con kẹt',NULL,7,'2025-06-28 10:06:01'),(15,'xin lỗi , web b tuyệt vời lắm 😔','🙂🙂',NULL,9,'2025-06-28 11:39:16'),(16,'👽 bị lộ rồi','bị lộ rồi',NULL,9,'2025-06-28 11:40:35'),(17,'góp ý','tính năng thả icon ch ổn nha fen, thả xong mà cứ load lại trang :v',NULL,11,'2025-06-28 12:23:06'),(18,'Web lồn sửa hoài đéo hết lỗi','Lồn mẹ',NULL,1,'2025-06-28 18:20:06'),(19,'This is the official fanpage of Cristiano Ronaldo','Hi guys, I\'m Cristiano Ronaldo. Messi and I are best friends and always compete positively.',NULL,12,'2025-06-29 04:36:39'),(20,'Ronaldoooooo','Siuuuuuuuuuuuuuuuu',NULL,12,'2025-06-29 04:39:14'),(21,'To Messi','I wonder if Messi uses this platform? I just wanted to say your wife was amazing last night.',NULL,12,'2025-06-29 04:42:09');
 /*!40000 ALTER TABLE `BaiDang` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -176,4 +177,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-06-29  4:46:36
+-- Dump completed on 2025-07-11  6:54:04

@@ -58,6 +58,32 @@ function hienThiDanhSachBaiDang(dsBaiDang) {
     const contentDiv = document.createElement("div");
     contentDiv.innerHTML = bai.noiDung;
     contentDiv.className = "noi-dung";
+    // Nếu có media (ảnh hoặc video), hiển thị nó
+    if (bai.mediaUrl) {
+      const ext = bai.mediaUrl.split(".").pop().toLowerCase();
+      const isVideo = ext === "mp4";
+
+      const mediaUrl = bai.mediaUrl.startsWith("/")
+        ? bai.mediaUrl
+        : `/uploads/posts/${bai.mediaUrl}`;
+
+      console.log("Đường dẫn media:", mediaUrl);
+
+      const mediaEl = document.createElement(isVideo ? "video" : "img");
+      mediaEl.src = mediaUrl;
+      if (ext === "mp4") {
+        mediaEl.controls = true;
+        mediaEl.style.maxWidth = "100px";
+        mediaEl.style.marginTop = "10px";
+      } else {
+        mediaEl.alt = "Hình ảnh bài viết";
+        mediaEl.style.maxWidth = "100px";
+        mediaEl.style.marginTop = "10px";
+        mediaEl.style.borderRadius = "8px";
+      }
+
+      container.appendChild(mediaEl);
+    }
 
     container.appendChild(title);
     container.appendChild(meta);
@@ -303,23 +329,33 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==== Đăng bài Popup ==== //
-document.addEventListener("DOMContentLoaded", () => {
-  const openBtn = document.getElementById("openPopupBtn");
-  const popupOverlay = document.getElementById("popupOverlay");
-  const closeBtn = document.getElementById("closePopupBtn");
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-  if (openBtn && popupOverlay && closeBtn) {
-    openBtn.addEventListener("click", () =>
-      popupOverlay.classList.add("active")
-    );
-    closeBtn.addEventListener("click", () =>
-      popupOverlay.classList.remove("active")
-    );
-    popupOverlay.addEventListener("click", (e) => {
-      if (e.target === popupOverlay) popupOverlay.classList.remove("active");
+  const formData = new FormData(form); // 👈 Thêm dòng này để khởi tạo FormData
+
+  try {
+    const res = await fetch("/api/baiviet", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("token"),
+        // ❌ KHÔNG thêm 'Content-Type' ở đây nếu dùng FormData
+      },
+      body: formData,
     });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Lỗi đăng bài");
+
+    alert("✅ Đăng bài thành công");
+    popupOverlay.classList.remove("active");
+    form.reset();
+    mediaPreview.innerHTML = "";
+  } catch (err) {
+    alert("❌ " + err.message);
   }
 });
+
 // Tìm kiếm user và post
 document.addEventListener("DOMContentLoaded", () => {
   const searchBox = document.getElementById("search-box");

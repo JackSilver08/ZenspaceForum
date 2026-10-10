@@ -283,7 +283,7 @@ log.Println("📨 Method:", r.Method)
 
 	// Option 1: Lưu ảnh vào thư mục
 	filename := fmt.Sprintf("avatar_%d_%s", userID, handler.Filename)
-	savePath := "/root/project/backend/uploads/" + filename
+	savePath := "/uploads/" + filename
         fmt.Println("📥 Nhận ảnh: ", handler.Filename)
         fmt.Println("📁 Lưu tại: ", savePath)
 	err = os.WriteFile(savePath, fileBytes, 0644)
