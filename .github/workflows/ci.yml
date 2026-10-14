@@ -48,6 +48,16 @@ jobs:
         run: |
           docker compose config --quiet
           python3 scripts/check_compose.py
+      - name: Reproduce Windows CRLF checkout before Docker build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("apps/api/docker-entrypoint.sh")
+          content = p.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+          p.write_bytes(content)
+          assert b"#!/bin/sh\r\n" == content[:11], "Failed to reproduce Windows CRLF file"
+          print("CRLF injected into Docker build input")
+          PY
       - name: Boot the entire application
         run: docker compose up --build -d --wait --wait-timeout 300
       - name: Verify app through real HTTP
@@ -65,6 +75,17 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify shell scripts checkout as LF on Windows
+        shell: powershell
+        run: |
+          $files = @('apps/api/docker-entrypoint.sh', 'docs/BACKEND/wait-for-mysql.sh')
+          foreach ($file in $files) {
+            $bytes = [System.IO.File]::ReadAllBytes((Join-Path $PWD $file))
+            if ([Array]::IndexOf($bytes, [byte]13) -ge 0) {
+              throw "$file contains CRLF, which breaks Linux entrypoints."
+            }
+          }
+          Write-Host 'Shell files use LF on Windows as required by .gitattributes.'
       - name: Parse script with Windows PowerShell 5.1
         shell: powershell
         run: .\scripts\Test-PowerShellSyntax.ps1
