@@ -28,6 +28,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate light editorial design contracts
+        run: python3 scripts/check_stitch_design.py
       - name: Install dependencies and build
         working-directory: apps/web
         run: |

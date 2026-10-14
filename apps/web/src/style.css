@@ -1,38 +1,25 @@
 @import './styles/global.css';
 @import './styles/feed.css';
 
-/* Phase 1 compatibility layer: old profile, login, chat & post detail components remain functional. */
-.zs-main .card:not(.zs-composer):not(.zs-post-card) {
-  background: #151b2b;
-  color: var(--zs-text);
-  border: 1px solid var(--zs-border);
-  border-radius: 18px;
-  box-shadow: 0 12px 40px #0002 !important;
-}
-.zs-main .post { margin-bottom: 16px; }
-.zs-main .post-text { white-space: pre-wrap; overflow-wrap: anywhere; color: #c6cee0; line-height: 1.85; }
-.zs-main .post-media { display: block; width: 100%; max-height: 480px; object-fit: contain; border-radius: 12px; background: #090e19; }
-.zs-main .form-control, .zs-main input:not([type=file]).form-control, .zs-main textarea.form-control {
-  background: #101827; color: #ececff; border: 1px solid #34405a; border-radius: 11px;
-  padding: 12px 14px; box-shadow: none;
-}
-.zs-main .form-control:focus { border-color: #a593ff; box-shadow: 0 0 0 3px #a694ff22; }
-.zs-main .form-control::placeholder { color: #8d9bb5; }
-.zs-main input[type=file].form-control { padding: 11px; }
-.zs-main .btn-primary { background: linear-gradient(100deg, #9c8cff, #6cbec3); border: 0; color: #121628; font-weight: 700; border-radius: 10px; padding: 9px 16px; }
-.zs-main .btn-primary:hover { filter: brightness(1.15); }
-.zs-main .btn-outline-primary { border: 1px solid #8f82e6; color: #d3c7ff; border-radius: 10px; }
-.zs-main .btn-outline-primary:hover { background: #5950a5; border-color: #5950a5; }
-.zs-main .btn-outline-danger { border-radius: 10px; }
-.zs-main .btn-light { color: #c1cce4; background: #252d43; border: 0; border-radius: 10px; }
-.zs-main .btn-light:hover { color: #fff; background: #343d5b; }
-.zs-main .btn-link { color: #b1a8ff; }
-.zs-main .text-muted { color: #98a8c3 !important; }
-.zs-main h2, .zs-main h3, .zs-main h5 { font-family: var(--zs-display); letter-spacing: -.025em; }
-.zs-main h3 { font-weight: 700; }
-.zs-main .border-bottom { border-color: var(--zs-border) !important; }
-.zs-main .auth { width: 100%; max-width: 430px; margin-top: 6vh; }
-.zs-main .auth h2 { color: #c7bbff; }
-.zs-main .auth .btn-link { margin-top: 8px; }
-.zs-main .alert-danger { background: #5f263e3b; color: #ffc6d0; border-color: #96496282; }
-.zs-not-found { background: #161c2e; border: 1px solid var(--zs-border); border-radius: 18px; padding: 40px; }
+/* Compatibility styling for account, search, messaging, and post details
+   while their layouts migrate from Bootstrap to the Stitch design system. */
+.zs-main .card {background:#fff;color:var(--zs-text);border:1px solid var(--zs-border);border-radius:16px;box-shadow:0 5px 22px #17172e07!important}
+.zs-main .post {margin-bottom:17px}
+.zs-main .post-text {color:#505569;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85}
+.zs-main .post-media {display:block;max-height:480px;width:100%;object-fit:contain;background:#f4f3f5;border-radius:10px}
+.zs-main .form-control {color:#161c2c!important;background:#fff!important;border:1px solid #d8d5df!important;border-radius:10px;padding:11px 13px;box-shadow:none!important}
+.zs-main .form-control:focus {border-color:#584381!important;box-shadow:0 0 0 3px #5843811a!important}
+.zs-main .form-control::placeholder {color:#83828e}
+.zs-main .btn-primary {color:#fff;background:#141824;border-color:#141824;border-radius:99px;font-weight:600;padding:9px 16px}
+.zs-main .btn-primary:hover {color:#fff;background:#493675;border-color:#493675}
+.zs-main .btn-outline-primary {color:#483875;border:1px solid #9e90bf;border-radius:99px}
+.zs-main .btn-outline-primary:hover {color:#fff;background:#58458a}
+.zs-main .btn-light {background:#f4f1f7;border:0;border-radius:99px;color:#493774}
+.zs-main .btn-link {color:#594383}
+.zs-main .text-muted {color:#62697b!important}
+.zs-main h2,.zs-main h3,.zs-main h5 {font-family:var(--zs-display);letter-spacing:-.025em}
+.zs-main .border-bottom {border-color:var(--zs-border)!important}
+.zs-main .auth {max-width:430px;margin:5vh auto 0}
+.zs-main .auth h2 {font-weight:700}
+.zs-main .alert-danger {color:#9b2648;background:#ffedf3;border-color:#f2cbd5}
+.zs-not-found {border:1px solid var(--zs-border);background:#fff;border-radius:16px;padding:38px}

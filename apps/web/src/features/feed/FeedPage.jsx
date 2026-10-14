@@ -41,7 +41,7 @@ function Media({ src, title = '' }) {
 }
 
 function Composer({ me, onPosted }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [file, setFile] = useState(null);
@@ -154,7 +154,7 @@ function Composer({ me, onPosted }) {
           <span className="zs-tool-icon"><ImagePlus size={18} /></span> Ảnh / Video
         </button>
         <input ref={picker} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4" onChange={selectFile} aria-label="Chọn ảnh hoặc video" />
-        <span className="zs-composer-hint">Cùng chia sẻ điều tích cực <span aria-hidden="true">✦</span></span>
+        <span className="zs-composer-hint">Cảm hứng được lan tỏa <span aria-hidden="true">✦</span></span>
       </div>
       {!expanded && error && <p className="zs-error" role="alert">{error}</p>}
     </section>
@@ -242,6 +242,11 @@ function PostCard({ post, me, onDelete }) {
         <p>{post.noiDung}</p>
       </div>
       <Media src={post.mediaUrl} title={post.tieuDe} />
+      {Array.from(new Set((String(post.noiDung || '').match(/#[\p{L}\p{N}_]+/gu) || []))).slice(0, 4).length > 0 && (
+        <div className="zs-post-tags">
+          {Array.from(new Set((String(post.noiDung || '').match(/#[\p{L}\p{N}_]+/gu) || []))).slice(0, 4).map(tag => <span key={tag}>{tag}</span>)}
+        </div>
+      )}
       <div className="zs-post-engagement">
         <span><span className="zs-reaction-flame" aria-hidden="true">♥</span>{count ? `${count} lượt cảm xúc` : 'Hãy là người đầu tiên tương tác'}</span>
         <Link to={`/posts/${id}`}>Xem bài viết <ArrowUpRight size={13}/></Link>
@@ -294,15 +299,28 @@ export default function FeedPage({ me }) {
   }, [following, refresh]);
 
   const reload = () => setRefresh(number => number + 1);
+  useEffect(() => {
+    if (window.location.hash === '#compose') {
+      window.requestAnimationFrame(() => document.getElementById('compose')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    }
+  }, []);
   return (
     <div className="zs-feed">
-      <div className="zs-feed-intro">
-        <div className="zs-feed-eyebrow"><span className="zs-eyebrow-line" /> ZENSPACE / COMMUNITY <Sparkles size={13} /></div>
-        <h1>Những câu chuyện.<br/><span>Những kết nối.</span></h1>
-        <p>Nơi mỗi suy nghĩ tìm thấy một người đồng điệu.</p>
-        <span className="zs-feed-sparkle zs-feed-sparkle--one" aria-hidden="true">✦</span>
-        <span className="zs-feed-sparkle zs-feed-sparkle--two" aria-hidden="true">✧</span>
-      </div>
+      <section className="zs-feed-intro" aria-labelledby="zs-feed-headline">
+        <div className="zs-hero-orbits" aria-hidden="true">
+          <svg viewBox="0 0 340 340"><circle cx="170" cy="170" r="148" strokeDasharray="2 5"/><circle cx="170" cy="170" r="99"/><circle cx="170" cy="170" r="55" strokeDasharray="6 5"/><path d="M15 170H325M170 15V325"/><circle cx="236" cy="96" r="4" className="zs-hero-node"/><circle cx="102" cy="245" r="3" className="zs-hero-node"/></svg>
+        </div>
+        <div className="zs-feed-intro-top">
+          <span className="zs-feed-eyebrow"><span aria-hidden="true">✦</span> KHÔNG GIAN ĐỐI THOẠI</span>
+          <span className="zs-hero-coordinates">ZENSPACE · CELESTIAL JOURNAL</span>
+        </div>
+        <h1 id="zs-feed-headline">Những câu chuyện. <em>Những kết nối.</em></h1>
+        <p>Nơi mỗi suy nghĩ tìm thấy một người đồng điệu giữa muôn trùng vì sao. Một không gian dành cho những tâm hồn trân trọng chiều sâu.</p>
+        <div className="zs-hero-footer">
+          <span><span className="zs-hero-foot-dot"/> Chia sẻ góc nhìn</span>
+          <span><Sparkles size={13}/> Khám phá cộng đồng</span>
+        </div>
+      </section>
 
       <Composer me={me} onPosted={reload}/>
 

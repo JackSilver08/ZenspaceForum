@@ -1,19 +1,21 @@
 :root {
-  color-scheme: dark;
-  --zs-bg: #080b14;
-  --zs-surface: #101524;
-  --zs-surface-raised: #151b2c;
-  --zs-surface-hover: #1b2235;
-  --zs-border: rgba(171, 184, 220, .12);
-  --zs-border-bright: rgba(171, 184, 220, .22);
-  --zs-text: #f1f2ff;
-  --zs-muted: #9aabc5;
-  --zs-faint: #72809c;
-  --zs-accent: #a69bff;
-  --zs-accent-deep: #796af5;
-  --zs-cyan: #81ddd4;
-  --zs-pink: #ffa7d4;
-  --zs-radius: 20px;
-  --zs-font: 'DM Sans', 'Segoe UI', sans-serif;
+  color-scheme: light;
+  --zs-bg: #fbf9f6;
+  --zs-surface: #ffffff;
+  --zs-surface-raised: #f5f3f0;
+  --zs-surface-hover: #eeebf0;
+  --zs-border: rgba(11, 16, 33, .095);
+  --zs-border-bright: rgba(11, 16, 33, .15);
+  --zs-text: #141c30;
+  --zs-muted: #50586b;
+  --zs-faint: #667087;
+  --zs-accent: #4b3a82;
+  --zs-accent-deep: #342660;
+  --zs-cyan: #257985;
+  --zs-pink: #b94e7d;
+  --zs-rose-soft: #f9e5ee;
+  --zs-purple-soft: #eee7fb;
+  --zs-radius: 14px;
+  --zs-font: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
   --zs-display: 'Space Grotesk', 'Segoe UI', sans-serif;
 }
