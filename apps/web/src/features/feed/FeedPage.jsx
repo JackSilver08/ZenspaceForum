@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, ArrowUpRight, Check, ChevronDown, Compass, Heart,
-  ImagePlus, MessageCircle, MoreHorizontal, RefreshCw, Send, PenLine,
+  ImagePlus, MessageCircle, MoreHorizontal, RefreshCw, Send, PenLine, Orbit,
   Share2, Sparkles, Trash2, X
 } from 'lucide-react';
 import { api } from '../../api';

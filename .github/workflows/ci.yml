@@ -36,6 +36,7 @@ jobs:
         working-directory: apps/web
         run: |
           npm install --no-audit --no-fund
+          npm run lint
           npm run build
   docker-smoke:
     name: Docker Compose + HTTP smoke test
@@ -66,6 +67,24 @@ jobs:
         run: docker compose up --build -d --wait --wait-timeout 300
       - name: Verify app through real HTTP
         run: python3 scripts/smoke.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        working-directory: apps/web
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify React really renders in Chromium
+        working-directory: apps/web
+        run: npm run test:browser
+      - name: Upload browser failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-artifacts
+          path: apps/web/test-results
+          if-no-files-found: ignore
       - name: Simulate optional Redis outage
         run: |
           docker compose stop redis

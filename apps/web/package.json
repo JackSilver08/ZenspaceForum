@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build"
+    "build": "vite build",
+    "lint": "eslint \"src/**/*.{js,jsx}\"",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.7.0",
@@ -15,5 +17,11 @@
     "react-router-dom": "^6.30.0",
     "vite": "^6.1.0",
     "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "eslint": "^9.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^16.3.0"
   }
 }
