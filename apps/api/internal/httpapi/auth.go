@@ -13,8 +13,8 @@ func (a *App) register(c *gin.Context) {
     if err := c.ShouldBindJSON(&body); err != nil { fail(c, 400, "Dữ liệu không hợp lệ"); return }
     username := textVal(body, "username", "tenDangNhap")
     email := textVal(body, "email")
-    password := textVal(body, "password", "matKhau")
-    confirm := textVal(body, "confirmPassword")
+    password := rawTextVal(body, "password", "matKhau")
+    confirm := rawTextVal(body, "confirmPassword")
     if username == "" || email == "" || len(password) < 8 || password != confirm {
         fail(c, 400, "Thông tin đăng ký không hợp lệ (mật khẩu tối thiểu 8 ký tự)"); return
     }
@@ -30,18 +30,18 @@ func (a *App) register(c *gin.Context) {
 func (a *App) login(c *gin.Context) {
     var body map[string]interface{}
     if err := c.ShouldBindJSON(&body); err != nil { fail(c, 400, "Dữ liệu không hợp lệ"); return }
-    username := textVal(body, "TenDangNhap", "username", "tenDangNhap")
-    password := textVal(body, "MatKhau", "password", "matKhau")
+    username := textVal(body, "TenDangNhap", "username", "tenDangNhap", "email")
+    password := rawTextVal(body, "MatKhau", "password", "matKhau")
     var id int
     var stored, name, role, avatar string
-    err := a.DB.QueryRowContext(c.Request.Context(), "SELECT id,tenDangNhap,matKhau,COALESCE(avatar,''),COALESCE(phanQuyen,'user') FROM TaiKhoan WHERE tenDangNhap=?", username).Scan(&id,&name,&stored,&avatar,&role)
+    err := a.DB.QueryRowContext(c.Request.Context(), "SELECT id,tenDangNhap,matKhau,COALESCE(avatar,''),COALESCE(phanQuyen,'user') FROM TaiKhoan WHERE tenDangNhap=? OR email=?", username, username).Scan(&id,&name,&stored,&avatar,&role)
     if err != nil {
         if err != sql.ErrNoRows { fail(c, 500, "Database error"); return }
         fail(c, 401, "Sai tài khoản hoặc mật khẩu"); return
     }
     if err := bcrypt.CompareHashAndPassword([]byte(stored), []byte(password)); err != nil {
         // One-time migration of existing local demo accounts; never overwrite hashes.
-        if len(stored) >= 4 && stored[:4] == "$2a$" || len(stored) >= 4 && stored[:4] == "$2b$" {
+        if len(stored) >= 4 && (stored[:4] == "$2a$" || stored[:4] == "$2b$") {
             fail(c, 401, "Sai tài khoản hoặc mật khẩu"); return
         }
         if stored != password { fail(c, 401, "Sai tài khoản hoặc mật khẩu"); return }

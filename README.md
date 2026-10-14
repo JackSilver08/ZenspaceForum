@@ -1,6 +1,6 @@
 # ZenSpace Social (v2)
 
-The legacy forum is being modernized into a social network using **React + Vite + Bootstrap 5**, **Go + Gin**, and **MySQL**. Redis is optional. The original code and database import are retained.
+The application is built on a modern architecture using **React + Vite + Bootstrap 5**, **Go + Gin**, and **MySQL**. Redis is optional.
 
 ## Getting started
 1. Start Docker Desktop.
@@ -10,6 +10,6 @@ The legacy forum is being modernized into a social network using **React + Vite 
 
 Use STOP.bat to stop the services while keeping persistent data. Do not use docker compose down -v unless intentionally deleting the database.
 
-See ARCHITECTURE.md for migration and backup information. The original frontend/backend is under docs/.
+See ARCHITECTURE.md for architecture and data persistence information.
 
 **Security:** The original SQL data has demo accounts with plaintext passwords. Successful login upgrades a legacy password to bcrypt. Do not deploy publicly with demo credentials. Audit and integration testing are required before production.

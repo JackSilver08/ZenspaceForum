@@ -224,7 +224,7 @@ function PostCard({ post, me, onDelete }) {
     <article className="zs-post-card">
       <div className="zs-post-top">
         <Link className="zs-post-author-avatar" to={`/users/${post.idTaiKhoan}`} aria-label={`Xem hồ sơ ${author}`}>
-          <Avatar name={author} size="large" />
+          <Avatar name={author} avatar={post.avatar} size="large" />
         </Link>
         <div className="zs-post-author-text">
           <Link to={`/users/${post.idTaiKhoan}`} className="zs-post-author-name">{author}</Link>

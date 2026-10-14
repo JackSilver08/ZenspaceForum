@@ -31,6 +31,23 @@ func textVal(m map[string]interface{}, names ...string) string {
     for _, name := range names { if v, ok := m[name].(string); ok { return strings.TrimSpace(v) } }
     return ""
 }
+func rawTextVal(m map[string]interface{}, names ...string) string {
+    for _, name := range names { if v, ok := m[name].(string); ok { return v } }
+    return ""
+}
+func corsMiddleware() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Header("Access-Control-Allow-Origin", "*")
+        c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+        c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Cache-Control, X-Requested-With")
+        c.Header("Access-Control-Expose-Headers", "Content-Length")
+        if c.Request.Method == "OPTIONS" {
+            c.AbortWithStatus(http.StatusNoContent)
+            return
+        }
+        c.Next()
+    }
+}
 func (a *App) issueToken(id int, username, role string) (string, error) {
     claims := jwt.MapClaims{"id": id, "tenDangNhap": username, "phanQuyen": role, "exp": time.Now().Add(24*time.Hour).Unix()}
     return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(a.Secret)
@@ -59,7 +76,7 @@ func isAdmin(c *gin.Context) bool { role, _ := c.Get("role"); return role == "ad
 
 func (a *App) Router() *gin.Engine {
     r := gin.New()
-    r.Use(gin.Logger(), gin.Recovery())
+    r.Use(gin.Logger(), gin.Recovery(), corsMiddleware())
     r.SetTrustedProxies(nil)
     r.GET("/hello", func(c *gin.Context){ c.String(200, "Server đang hoạt động tại ZenSpace!") })
     r.GET("/healthz", func(c *gin.Context) {
@@ -85,10 +102,13 @@ func (a *App) Router() *gin.Engine {
     secured.PUT("/baiviet/:id", a.updatePost)
     secured.DELETE("/baiviet/:id", a.deletePost)
     secured.POST("/binhluan", a.addComment)
+    secured.DELETE("/binhluan/:id", a.deleteComment)
     secured.DELETE("/binhluan/xoa/:id", a.deleteComment)
     secured.POST("/camxuc/:id", a.react)
+    secured.DELETE("/camxuc/:id", a.unreact)
     secured.POST("/nguoidung/:id/avatar", a.avatar)
     secured.DELETE("/xoataikhoan/:id", a.deleteAccount)
+    secured.DELETE("/nguoidung/:id", a.deleteAccount)
     secured.POST("/chat/gui", a.sendMessage)
     secured.GET("/chat/lichsu/:id1/:id2", a.chatHistory)
     secured.GET("/v1/feed", a.feed)

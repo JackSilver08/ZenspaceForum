@@ -29,6 +29,9 @@ func (a *App) profile(c *gin.Context){
     err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT tenDangNhap,COALESCE(avatar,'') FROM TaiKhoan WHERE id=?",id).Scan(&name,&avatar)
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy người dùng");return}
     if err!=nil{fail(c,500,"Lỗi truy vấn");return}
+    var followers, following int
+    _=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE following_id=?",id).Scan(&followers)
+    _=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE follower_id=?",id).Scan(&following)
     rows,err:=a.DB.QueryContext(c.Request.Context(),"SELECT id,tieuDe,noiDung,COALESCE(mediaUrl,''),ngayTao FROM BaiDang WHERE idTaiKhoan=? ORDER BY ngayTao DESC,id DESC LIMIT 100",id)
     if err!=nil{fail(c,500,"Lỗi tải trang cá nhân");return}
     defer rows.Close()
@@ -39,12 +42,17 @@ func (a *App) profile(c *gin.Context){
         posts=append(posts,gin.H{"id":pid,"idTaiKhoan":id,"tieuDe":title,"noiDung":content,"mediaUrl":media,"ngayDang":created.Format(time.RFC3339)})
     }
     if rows.Err()!=nil{fail(c,500,"Lỗi bài viết");return}
-    c.JSON(200,gin.H{"success":true,"data":gin.H{"user":gin.H{"id":id,"tenDangNhap":name,"avatar":avatar},"baiViets":posts}})
+    c.JSON(200,gin.H{"success":true,"data":gin.H{"user":gin.H{"id":id,"tenDangNhap":name,"avatar":avatar,"followers":followers,"following":following},"baiViets":posts}})
 }
 func (a *App) searchUsers(c *gin.Context){
     keyword:=strings.TrimSpace(c.Query("key"))
-    if len(keyword)<2{c.JSON(200,gin.H{"success":true,"data":[]gin.H{}});return}
-    rows,err:=a.DB.QueryContext(c.Request.Context(),"SELECT id,tenDangNhap,COALESCE(avatar,'') FROM TaiKhoan WHERE tenDangNhap LIKE ? ORDER BY tenDangNhap LIMIT 20","%"+keyword+"%")
+    var rows *sql.Rows
+    var err error
+    if len(keyword)<2 {
+        rows,err=a.DB.QueryContext(c.Request.Context(),"SELECT id,tenDangNhap,COALESCE(avatar,'') FROM TaiKhoan ORDER BY id DESC LIMIT 15")
+    } else {
+        rows,err=a.DB.QueryContext(c.Request.Context(),"SELECT id,tenDangNhap,COALESCE(avatar,'') FROM TaiKhoan WHERE tenDangNhap LIKE ? ORDER BY tenDangNhap LIMIT 20","%"+keyword+"%")
+    }
     if err!=nil{fail(c,500,"Lỗi tìm kiếm");return}
     defer rows.Close()
     users:=make([]gin.H,0)
