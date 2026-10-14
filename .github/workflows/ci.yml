@@ -60,3 +60,14 @@ jobs:
       - name: Stop containers (preserve volumes)
         if: always()
         run: docker compose down || true
+  windows-launcher:
+    name: Windows PowerShell launcher syntax
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse script with Windows PowerShell 5.1
+        shell: powershell
+        run: .\scripts\Test-PowerShellSyntax.ps1
+      - name: Parse script with PowerShell 7
+        shell: pwsh
+        run: .\scripts\Test-PowerShellSyntax.ps1
