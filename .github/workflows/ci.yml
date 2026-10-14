@@ -29,7 +29,9 @@ jobs:
         with:
           node-version: '22'
       - name: Validate light editorial design contracts
-        run: python3 scripts/check_stitch_design.py
+        run: |
+          python3 scripts/check_stitch_design.py
+          python3 scripts/check_ux_audit.py
       - name: Install dependencies and build
         working-directory: apps/web
         run: |
