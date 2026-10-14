@@ -35,7 +35,7 @@ def api(path, method="GET", data=None, token=None, expected=200, content_type=No
     return request(API + path, method, data, token, expected, content_type)
 
 # Check Gin readiness directly, then exercise the website and /api proxy via Nginx.
-assert json.loads(request("http://127.0.0.1:8081/healthz").decode())["status"] == "ok"
+assert request("http://127.0.0.1:8081/healthz")["status"] == "ok"
 assert request("http://127.0.0.1:8081/hello").startswith(b"Server")
 html = request(ROOT).decode()
 assert 'id="root"' in html, "React HTML did not load"
