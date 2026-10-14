@@ -1,5 +1,6 @@
 @import './styles/global.css';
 @import './styles/feed.css';
+@import './styles/chat.css';
 
 /* Compatibility styling for account, search, messaging, and post details
    while their layouts migrate from Bootstrap to the Stitch design system. */

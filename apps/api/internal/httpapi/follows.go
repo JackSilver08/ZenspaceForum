@@ -13,14 +13,14 @@ func (a *App) feed(c *gin.Context){
         userID(c),userID(c),limit)
     if err!=nil{fail(c,500,"Không tải được bảng tin");return}
     defer rows.Close()
-    posts:=make([]gin.H,0)
+    posts:=make([]post,0)
     for rows.Next(){
         var p post
         if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Title,&p.Content,&p.Media,&p.Created,&p.Avatar);err!=nil{fail(c,500,"Lỗi bảng tin");return}
-        posts=append(posts,p.JSON())
+        posts=append(posts,p)
     }
     if rows.Err()!=nil{fail(c,500,"Lỗi bảng tin");return}
-    c.JSON(200,gin.H{"success":true,"data":posts})
+    writePosts(c,a.DB,posts)
 }
 func (a *App) follow(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}

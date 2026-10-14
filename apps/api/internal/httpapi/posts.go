@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+    "context"
     "database/sql"
     "fmt"
     "io"
@@ -18,9 +19,47 @@ type post struct {
     ID, OwnerID int
     Title, Content, Media, Author, Avatar string
     Created time.Time
+    Reactions gin.H
 }
 func (p post) JSON() gin.H {
-    return gin.H{"id":p.ID,"idTaiKhoan":p.OwnerID,"tenDangNhap":p.Author,"avatar":p.Avatar,"tieuDe":p.Title,"noiDung":p.Content,"mediaUrl":p.Media,"ngayDang":p.Created.Format(time.RFC3339)}
+    return gin.H{"id":p.ID,"idTaiKhoan":p.OwnerID,"tenDangNhap":p.Author,"avatar":p.Avatar,"tieuDe":p.Title,"noiDung":p.Content,"mediaUrl":p.Media,"ngayDang":p.Created.Format(time.RFC3339),"reactions":p.Reactions}
+}
+
+func emptyReactionCounts() gin.H {
+    result:=gin.H{}
+    for _, kind := range reactionTypes { result[kind]=0 }
+    return result
+}
+
+// Fetch counts once for the entire feed page instead of making N HTTP requests.
+func attachPostReactions(ctx context.Context, db *sql.DB, posts []post) error {
+    if len(posts)==0 { return nil }
+    args:=make([]interface{},len(posts))
+    placeholders:=make([]string,len(posts))
+    index:=map[int]int{}
+    for i:=range posts {
+        posts[i].Reactions=emptyReactionCounts()
+        args[i]=posts[i].ID
+        placeholders[i]="?"
+        index[posts[i].ID]=i
+    }
+    query:="SELECT idBaiDang,loaiCamXuc,COUNT(*) FROM Cam_Xuc WHERE idBaiDang IN ("+strings.Join(placeholders,",")+") GROUP BY idBaiDang,loaiCamXuc"
+    rows,err:=db.QueryContext(ctx,query,args...)
+    if err!=nil {return err}
+    defer rows.Close()
+    for rows.Next() {
+        var id,count int
+        var kind string
+        if err:=rows.Scan(&id,&kind,&count);err!=nil{return err}
+        if i,ok:=index[id];ok {posts[i].Reactions[kind]=count}
+    }
+    return rows.Err()
+}
+func writePosts(c *gin.Context, db *sql.DB, posts []post) {
+    if err:=attachPostReactions(c.Request.Context(),db,posts);err!=nil {fail(c,500,"Không thể tải thống kê bài viết");return}
+    result:=make([]gin.H,0,len(posts))
+    for _,p:=range posts {result=append(result,p.JSON())}
+    c.JSON(200,gin.H{"success":true,"data":result})
 }
 func (a *App) listPosts(c *gin.Context) {
     limit, _ := strconv.Atoi(c.DefaultQuery("limit","30"))
@@ -29,14 +68,14 @@ func (a *App) listPosts(c *gin.Context) {
         "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.tieuDe,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,'') FROM BaiDang b JOIN TaiKhoan t ON b.idTaiKhoan=t.id ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?", limit)
     if err != nil { fail(c,500,"Không thể tải bài viết");return }
     defer rows.Close()
-    data := make([]gin.H,0)
+    data := make([]post,0)
     for rows.Next() {
         var p post
         if err := rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Title,&p.Content,&p.Media,&p.Created,&p.Avatar); err != nil { fail(c,500,"Lỗi dữ liệu bài viết"); return }
-        data=append(data,p.JSON())
+        data=append(data,p)
     }
     if rows.Err()!=nil { fail(c,500,"Lỗi đọc bài viết");return }
-    c.JSON(200,gin.H{"success":true,"data":data})
+    writePosts(c,a.DB,data)
 }
 func (a *App) getPost(c *gin.Context) {
     id,ok:=intParam(c,"id");if !ok{return}
@@ -46,7 +85,9 @@ func (a *App) getPost(c *gin.Context) {
         Scan(&p.ID,&p.OwnerID,&p.Author,&p.Title,&p.Content,&p.Media,&p.Created,&p.Avatar)
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy bài viết");return}
     if err!=nil{fail(c,500,"Lỗi truy vấn");return}
-    c.JSON(200,gin.H{"success":true,"data":p.JSON()})
+    batch:=[]post{p}
+    if err:=attachPostReactions(c.Request.Context(),a.DB,batch);err!=nil{fail(c,500,"Không tải được thống kê");return}
+    c.JSON(200,gin.H{"success":true,"data":batch[0].JSON()})
 }
 func (a *App) createPost(c *gin.Context) {
     var title,content,media string

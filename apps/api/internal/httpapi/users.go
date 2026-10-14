@@ -30,8 +30,8 @@ func (a *App) profile(c *gin.Context){
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy người dùng");return}
     if err!=nil{fail(c,500,"Lỗi truy vấn");return}
     var followers, following int
-    _=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE following_id=?",id).Scan(&followers)
-    _=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE follower_id=?",id).Scan(&following)
+    if err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE following_id=?",id).Scan(&followers);err!=nil {fail(c,500,"Không tải được người theo dõi");return}
+    if err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE follower_id=?",id).Scan(&following);err!=nil {fail(c,500,"Không tải được dữ liệu đang theo dõi");return}
     rows,err:=a.DB.QueryContext(c.Request.Context(),"SELECT id,tieuDe,noiDung,COALESCE(mediaUrl,''),ngayTao FROM BaiDang WHERE idTaiKhoan=? ORDER BY ngayTao DESC,id DESC LIMIT 100",id)
     if err!=nil{fail(c,500,"Lỗi tải trang cá nhân");return}
     defer rows.Close()

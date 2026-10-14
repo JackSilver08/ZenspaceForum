@@ -33,8 +33,20 @@ func main() {
     if err := platform.Migrate(db); err != nil { log.Fatal("Database migration failed: ", err) }
     if err := os.MkdirAll(cfg.UploadDir + "/posts", 0755); err != nil { log.Fatal(err) }
 
-    redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
-    defer redisClient.Close()
+    redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr,
+        DialTimeout: 150 * time.Millisecond, ReadTimeout: 150 * time.Millisecond,
+        WriteTimeout: 150 * time.Millisecond, MaxRetries: -1,
+    })
+    redisCtx, stopRedisPing := context.WithTimeout(context.Background(), 300*time.Millisecond)
+    redisErr := redisClient.Ping(redisCtx).Err()
+    stopRedisPing()
+    if redisErr != nil {
+        log.Printf("Redis unavailable; running without optional cache: %v", redisErr)
+        _ = redisClient.Close()
+        redisClient = nil
+    } else {
+        defer redisClient.Close()
+    }
     app := &httpapi.App{DB: db, Redis: redisClient, Secret: []byte(cfg.JWTSecret), UploadDir: cfg.UploadDir}
     router := app.Router()
     log.Printf("Zenspace API listening on :%s", cfg.Port)

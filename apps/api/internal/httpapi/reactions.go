@@ -2,6 +2,8 @@ package httpapi
 
 import (
     "context"
+    "errors"
+    mysql "github.com/go-sql-driver/mysql"
     "database/sql"
     "encoding/json"
     "fmt"
@@ -13,7 +15,7 @@ func (a *App) reactionStats(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}
     key:=fmt.Sprintf("reactions:%d",id)
     if a.Redis!=nil {
-        rctx, cancel := context.WithTimeout(c.Request.Context(), 500*time.Millisecond)
+        rctx, cancel := context.WithTimeout(c.Request.Context(), 100*time.Millisecond)
         defer cancel()
         if cached,err:=a.Redis.Get(rctx,key).Result();err==nil{
             c.Data(200,"application/json; charset=utf-8",[]byte(cached));return
@@ -28,7 +30,7 @@ func (a *App) reactionStats(c *gin.Context){
     if rows.Err()!=nil{fail(c,500,"Lỗi đọc cảm xúc");return}
     if a.Redis!=nil {
         if b, err := json.Marshal(stats); err == nil {
-            rctx, cancel := context.WithTimeout(c.Request.Context(), 500*time.Millisecond)
+            rctx, cancel := context.WithTimeout(c.Request.Context(), 100*time.Millisecond)
             defer cancel()
             _ = a.Redis.Set(rctx, key, b, 60*time.Second).Err()
         }
@@ -46,23 +48,38 @@ func (a *App) react(c *gin.Context){
     err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT id FROM BaiDang WHERE id=?",id).Scan(&postExists)
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy bài viết");return}
     if err!=nil{fail(c,500,"Lỗi kiểm tra bài viết");return}
-    _,err=a.DB.ExecContext(c.Request.Context(),
-        "INSERT INTO Cam_Xuc(idBaiDang,idTaiKhoan,loaiCamXuc) VALUES(?,?,?) ON DUPLICATE KEY UPDATE loaiCamXuc=VALUES(loaiCamXuc)",
-        id,userID(c),kind)
-    if err!=nil{fail(c,500,"Không thể thả cảm xúc");return}
+    var existing string
+    currentErr:=a.DB.QueryRowContext(c.Request.Context(),
+        "SELECT loaiCamXuc FROM Cam_Xuc WHERE idBaiDang=? AND idTaiKhoan=?",id,userID(c)).Scan(&existing)
+    if currentErr!=nil && currentErr!=sql.ErrNoRows {fail(c,500,"Không đọc được cảm xúc");return}
+    action:="updated"
+    if currentErr==nil && existing==kind {
+        _,err=a.DB.ExecContext(c.Request.Context(),
+            "DELETE FROM Cam_Xuc WHERE idBaiDang=? AND idTaiKhoan=?",id,userID(c))
+        action="deleted"
+    } else {
+        _,err=a.DB.ExecContext(c.Request.Context(),
+            "INSERT INTO Cam_Xuc(idBaiDang,idTaiKhoan,loaiCamXuc) VALUES(?,?,?) ON DUPLICATE KEY UPDATE loaiCamXuc=VALUES(loaiCamXuc)",
+            id,userID(c),kind)
+    }
+    if err!=nil {
+        var myErr *mysql.MySQLError
+        if errors.As(err,&myErr) && myErr.Number==1452 {fail(c,404,"Bài viết không còn tồn tại");return}
+        fail(c,500,"Không thể cập nhật cảm xúc");return
+    }
     if a.Redis!=nil{
-        rctx, cancel := context.WithTimeout(c.Request.Context(), 500*time.Millisecond)
+        rctx, cancel := context.WithTimeout(c.Request.Context(), 100*time.Millisecond)
         defer cancel()
         _ = a.Redis.Del(rctx,fmt.Sprintf("reactions:%d",id)).Err()
     }
-    c.JSON(200,gin.H{"success":true,"action":"updated","emotion":kind,"updatedAt":time.Now().UTC()})
+    c.JSON(200,gin.H{"success":true,"action":action,"emotion":kind,"updatedAt":time.Now().UTC()})
 }
 func (a *App) unreact(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}
     _,err:=a.DB.ExecContext(c.Request.Context(),"DELETE FROM Cam_Xuc WHERE idBaiDang=? AND idTaiKhoan=?",id,userID(c))
     if err!=nil{fail(c,500,"Không thể hủy cảm xúc");return}
     if a.Redis!=nil{
-        rctx, cancel := context.WithTimeout(c.Request.Context(), 500*time.Millisecond)
+        rctx, cancel := context.WithTimeout(c.Request.Context(), 100*time.Millisecond)
         defer cancel()
         _ = a.Redis.Del(rctx,fmt.Sprintf("reactions:%d",id)).Err()
     }
