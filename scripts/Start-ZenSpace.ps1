@@ -161,13 +161,117 @@ try {
     $mysqlPort = Resolve-HostPort 'MYSQL_PORT' 'db' 3306 3307
     Save-Env
 
-    & docker compose config --quiet
+    $renderedCompose = & docker compose config --format json
     if ($LASTEXITCODE -ne 0) {
         throw 'docker-compose.yml is invalid. Check the file and .env, then try again.'
     }
+    $settings = ($renderedCompose -join [Environment]::NewLine) | ConvertFrom-Json
+    $apiContext = [string]$settings.services.backend.build.context
+    $webContext = [string]$settings.services.web.build.context
+    if (($apiContext -notmatch '[\\/]apps[\\/]api
+    $siteUrl = "http://localhost:$webPort"
+    $apiUrl = "http://127.0.0.1:$apiPort/healthz"
+    Write-Host ''
+    Write-Host " Website: $siteUrl"
+    Write-Host " API:     $apiUrl"
+    Write-Host " MySQL:   127.0.0.1:$mysqlPort"
+    Write-Host ''
+    Write-Host '[INFO] Building and starting MySQL, Redis, Go API, and Nginx...'
+
+    & docker compose up --build -d --remove-orphans
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '[ERROR] Docker Compose failed. Recent logs follow:'
+        & docker compose ps
+        & docker compose logs --tail=150 db redis backend web
+        exit 1
+    }
+
+    Write-Host '[INFO] Waiting for the API and website to become ready...'
+    $deadline = (Get-Date).AddMinutes(3)
+    $ready = $false
+    do {
+        $apiReady = Test-HttpReady $apiUrl
+        $webReady = Test-HttpReady $siteUrl
+        if ($apiReady -and $webReady) {
+            $ready = $true
+            break
+        }
+        Start-Sleep -Seconds 2
+    } while ((Get-Date) -lt $deadline)
+
+    if (-not $ready) {
+        Write-Host '[ERROR] API or website did not become ready within 3 minutes. Recent logs follow:'
+        & docker compose ps
+        & docker compose logs --tail=150 db redis backend web
+        exit 1
+    }
+
+    Write-Host '[OK] ZenSpace is ready. Opening the browser...'
+    Start-Process $siteUrl
+    Write-Host '[INFO] Following container logs. Press Ctrl+C to stop following logs; containers keep running.'
+    Write-Host '[INFO] Run STOP.bat to stop the services.'
+    & docker compose logs --follow --tail=100
+    exit 0
+} catch {
+    Write-Host ''
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+) -or ($webContext -notmatch '[\\/]apps[\\/]web
+    $siteUrl = "http://localhost:$webPort"
+    $apiUrl = "http://127.0.0.1:$apiPort/healthz"
+    Write-Host ''
+    Write-Host " Website: $siteUrl"
+    Write-Host " API:     $apiUrl"
+    Write-Host " MySQL:   127.0.0.1:$mysqlPort"
+    Write-Host ''
+    Write-Host '[INFO] Building and starting MySQL, Redis, Go API, and Nginx...'
+
+    & docker compose up --build -d --remove-orphans
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '[ERROR] Docker Compose failed. Recent logs follow:'
+        & docker compose ps
+        & docker compose logs --tail=150 db redis backend web
+        exit 1
+    }
+
+    Write-Host '[INFO] Waiting for the API and website to become ready...'
+    $deadline = (Get-Date).AddMinutes(3)
+    $ready = $false
+    do {
+        $apiReady = Test-HttpReady $apiUrl
+        $webReady = Test-HttpReady $siteUrl
+        if ($apiReady -and $webReady) {
+            $ready = $true
+            break
+        }
+        Start-Sleep -Seconds 2
+    } while ((Get-Date) -lt $deadline)
+
+    if (-not $ready) {
+        Write-Host '[ERROR] API or website did not become ready within 3 minutes. Recent logs follow:'
+        & docker compose ps
+        & docker compose logs --tail=150 db redis backend web
+        exit 1
+    }
+
+    Write-Host '[OK] ZenSpace is ready. Opening the browser...'
+    Start-Process $siteUrl
+    Write-Host '[INFO] Following container logs. Press Ctrl+C to stop following logs; containers keep running.'
+    Write-Host '[INFO] Run STOP.bat to stop the services.'
+    & docker compose logs --follow --tail=100
+    exit 0
+} catch {
+    Write-Host ''
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+)) {
+        throw "Incorrect Docker build contexts. Expected apps/api and apps/web. Actual backend='$apiContext', web='$webContext'."
+    }
 
     $siteUrl = "http://localhost:$webPort"
-    $apiUrl = "http://127.0.0.1:$apiPort/hello"
+    $apiUrl = "http://127.0.0.1:$apiPort/healthz"
     Write-Host ''
     Write-Host " Website: $siteUrl"
     Write-Host " API:     $apiUrl"
