@@ -84,11 +84,15 @@ jobs:
       - name: Verify shell scripts checkout as LF on Windows
         shell: powershell
         run: |
-          $files = @('apps/api/docker-entrypoint.sh', 'docs/BACKEND/wait-for-mysql.sh')
+          $files = @(Get-ChildItem -Path . -Recurse -Filter '*.sh' -File)
+          if (-not (Test-Path 'apps/api/docker-entrypoint.sh')) {
+            throw 'Required backend entrypoint missing.'
+          }
+          if ($files.Count -eq 0) { throw 'No shell scripts found.' }
           foreach ($file in $files) {
-            $bytes = [System.IO.File]::ReadAllBytes((Join-Path $PWD $file))
+            $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
             if ([Array]::IndexOf($bytes, [byte]13) -ge 0) {
-              throw "$file contains CRLF, which breaks Linux entrypoints."
+              throw "Shell file contains CRLF: $($file.FullName)"
             }
           }
           Write-Host 'Shell files use LF on Windows as required by .gitattributes.'
