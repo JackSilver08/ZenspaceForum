@@ -1,9 +1,12 @@
 FROM golang:1.24.3-alpine AS build
 WORKDIR /src
 COPY go.mod ./
-RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -o /zenspace-api ./cmd/server
+# go.sum has not yet been committed for the new Go module. Resolve all
+# direct and transitive checksums as part of the actual Docker build.
+RUN go mod tidy \
+    && go mod verify \
+    && CGO_ENABLED=0 go build -trimpath -o /zenspace-api ./cmd/server
 
 FROM alpine:3.21
 RUN apk add --no-cache su-exec \
