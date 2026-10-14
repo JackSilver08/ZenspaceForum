@@ -2,6 +2,9 @@ package httpapi
 
 import (
     "database/sql"
+    "encoding/json"
+    "math"
+    "os"
     "net/http"
     "strconv"
     "strings"
@@ -35,16 +38,42 @@ func rawTextVal(m map[string]interface{}, names ...string) string {
     for _, name := range names { if v, ok := m[name].(string); ok { return v } }
     return ""
 }
-func corsMiddleware() gin.HandlerFunc {
+func parsePositiveID(value interface{}) (int, bool) {
+    switch v := value.(type) {
+    case float64:
+        if math.IsNaN(v) || math.IsInf(v,0) || v<1 || v>9007199254740991 || math.Trunc(v)!=v {return 0,false}
+        return int(v),true
+    case int:
+        return v,v>0
+    case int64:
+        if v<1 || v>9007199254740991 {return 0,false}
+        return int(v),true
+    case json.Number:
+        n,err:=strconv.Atoi(v.String());return n,err==nil && n>0
+    case string:
+        n,err:=strconv.Atoi(strings.TrimSpace(v));return n,err==nil && n>0
+    default:
+        return 0,false
+    }
+}
+func corsMiddleware(allowed []string) gin.HandlerFunc {
+    origins:=map[string]bool{}
+    for _,value:=range allowed {
+        if origin:=strings.TrimSpace(value);origin!="" {origins[origin]=true}
+    }
     return func(c *gin.Context) {
-        c.Header("Access-Control-Allow-Origin", "*")
-        c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-        c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Cache-Control, X-Requested-With")
-        c.Header("Access-Control-Expose-Headers", "Content-Length")
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(http.StatusNoContent)
-            return
+        origin:=c.GetHeader("Origin")
+        if origin=="" {c.Next();return}
+        c.Header("Vary","Origin")
+        if !origins[origin] {
+            if c.Request.Method==http.MethodOptions {c.AbortWithStatus(http.StatusForbidden);return}
+            c.Next();return
         }
+        c.Header("Access-Control-Allow-Origin",origin)
+        c.Header("Access-Control-Allow-Methods","GET, POST, PUT, DELETE, OPTIONS")
+        c.Header("Access-Control-Allow-Headers","Authorization, Content-Type, Accept")
+        c.Header("Access-Control-Max-Age","600")
+        if c.Request.Method==http.MethodOptions {c.AbortWithStatus(http.StatusNoContent);return}
         c.Next()
     }
 }
@@ -76,7 +105,9 @@ func isAdmin(c *gin.Context) bool { role, _ := c.Get("role"); return role == "ad
 
 func (a *App) Router() *gin.Engine {
     r := gin.New()
-    r.Use(gin.Logger(), gin.Recovery(), corsMiddleware())
+    allowedOrigins:=[]string{"http://localhost:5173","http://127.0.0.1:5173"}
+    if configured:=strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"));configured!="" {allowedOrigins=strings.Split(configured,",")}
+    r.Use(gin.Logger(), gin.Recovery(), corsMiddleware(allowedOrigins))
     r.SetTrustedProxies(nil)
     r.GET("/hello", func(c *gin.Context){ c.String(200, "Server đang hoạt động tại ZenSpace!") })
     r.GET("/healthz", func(c *gin.Context) {
@@ -111,6 +142,7 @@ func (a *App) Router() *gin.Engine {
     secured.DELETE("/nguoidung/:id", a.deleteAccount)
     secured.POST("/chat/gui", a.sendMessage)
     secured.GET("/chat/lichsu/:id1/:id2", a.chatHistory)
+    secured.GET("/chat/inbox", a.chatInbox)
     secured.GET("/v1/feed", a.feed)
     secured.POST("/v1/users/:id/follow", a.follow)
     secured.DELETE("/v1/users/:id/follow", a.unfollow)

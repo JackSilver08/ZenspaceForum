@@ -2,7 +2,8 @@ package httpapi
 
 import (
     "database/sql"
-    "strconv"
+    "errors"
+    mysql "github.com/go-sql-driver/mysql"
     "strings"
     "time"
     "github.com/gin-gonic/gin"
@@ -27,22 +28,19 @@ func (a *App) addComment(c *gin.Context) {
     if err:=c.ShouldBindJSON(&body);err!=nil{fail(c,400,"JSON không hợp lệ");return}
     content:=strings.TrimSpace(textVal(body,"noiDung"))
     if content==""||len(content)>10000{fail(c,400,"Bình luận không hợp lệ");return}
-    var postID int
-    switch v:=body["idBaiDang"].(type){
-    case float64: postID = int(v)
-    case int: postID = v
-    case string: postID, _ = strconv.Atoi(v)
-    }
-    if postID < 1 {
-        if v, ok := body["postId"].(float64); ok { postID = int(v) }
-    }
-    if postID < 1 {fail(c,400,"Thiếu ID bài viết");return}
+    postID, ok := parsePositiveID(body["idBaiDang"])
+    if !ok { postID, ok = parsePositiveID(body["postId"]) }
+    if !ok {fail(c,400,"ID bài viết phải là số nguyên dương");return}
     var exists int
     err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT id FROM BaiDang WHERE id=?",postID).Scan(&exists)
     if err==sql.ErrNoRows{fail(c,404,"Bài viết không tồn tại");return}
     if err!=nil{fail(c,500,"Lỗi truy vấn");return}
     _,err=a.DB.ExecContext(c.Request.Context(),"INSERT INTO binhluan(idBaiDang,idTaiKhoan,noiDung) VALUES(?,?,?)",postID,userID(c),content)
-    if err!=nil{fail(c,500,"Không lưu được bình luận");return}
+    if err!=nil{
+        var myErr *mysql.MySQLError
+        if errors.As(err,&myErr)&&myErr.Number==1452 {fail(c,404,"Bài viết vừa bị xóa");return}
+        fail(c,500,"Không lưu được bình luận");return
+    }
     c.JSON(201,gin.H{"success":true,"message":"Bình luận thành công"})
 }
 func (a *App) deleteComment(c *gin.Context) {

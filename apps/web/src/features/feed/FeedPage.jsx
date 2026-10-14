@@ -162,7 +162,7 @@ function Composer({ me, onPosted }) {
 }
 
 function PostCard({ post, me, onDelete }) {
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(post.reactions || null);
   const [menu, setMenu] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -173,10 +173,11 @@ function PostCard({ post, me, onDelete }) {
   const owned = Boolean(me && (Number(me.id) === Number(post.idTaiKhoan) || me.phanQuyen === 'admin'));
 
   useEffect(() => {
+    if (post.reactions) { setStats(post.reactions); return; }
     let active = true;
     api(`/camxuc/thongke/${id}`).then(result => { if (active) setStats(result); }).catch(() => {});
     return () => { active = false; };
-  }, [id]);
+  }, [id, post.reactions]);
 
   async function react(kind) {
     setBusy(true);
