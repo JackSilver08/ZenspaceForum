@@ -1,28 +1,15 @@
-# ZenspaceForum
+# ZenSpace Social (v2)
 
-Forum web project with the existing HTML/CSS/JavaScript frontend and Go API. MySQL, Redis, Go, and Nginx run through Docker Compose.
+The legacy forum is being modernized into a social network using **React + Vite + Bootstrap 5**, **Go + Gin**, and **MySQL**. Redis is optional. The original code and database import are retained.
 
-## Run on Windows
+## Getting started
+1. Start Docker Desktop.
+2. Clone the repository and run START.bat in the repository root.
+3. The launcher generates local .env values, builds Go/React, starts MySQL + Redis + API + Nginx and opens the website.
+4. Default ports: web 8089, API 8081, MySQL 3307 (automatically changed if occupied).
 
-1. Install and open Docker Desktop. Wait until Docker Engine is ready.
-2. Clone/download this repository.
-3. Run `START.bat` from the repository root (PowerShell: `./START.bat`).
+Use STOP.bat to stop the services while keeping persistent data. Do not use docker compose down -v unless intentionally deleting the database.
 
-The launcher creates a local-only `.env` with generated MySQL/JWT secrets, selects available host ports, starts the stack, waits for the API and website, opens the browser, and follows container logs.
+See ARCHITECTURE.md for migration and backup information. The original frontend/backend is under docs/.
 
-Default preferred ports are website `8089`, API `8081`, and MySQL `3307`. If a port is already occupied, the launcher selects a free nearby port and stores it in `.env`; use the URLs printed by the launcher.
-
-Run `STOP.bat` to stop containers without deleting the database volume. Do not run `docker compose down -v` unless you intend to delete the database.
-
-## Data
-
-- MySQL data: Docker named volume `zenspace_mysql_data`.
-- Uploaded media: local `data/uploads`.
-- `ZenSpaceDB_latest.sql` is imported only when MySQL initializes a new data volume.
-- The SQL file contains sanitized demo accounts. All demo accounts use password `ZenSpaceDemo123!`; this is strictly for local development and is not suitable for production.
-
-## Important
-
-- Do not commit `.env` or anything under `data/`.
-- Use the root `docker-compose.yml` and `START.bat` for the normal startup path.
-- This project still uses its existing plain-text password comparison in application code; do not deploy publicly without adding password hashing and appropriate production security controls.
+**Security:** The original SQL data has demo accounts with plaintext passwords. Successful login upgrades a legacy password to bcrypt. Do not deploy publicly with demo credentials. Audit and integration testing are required before production.
