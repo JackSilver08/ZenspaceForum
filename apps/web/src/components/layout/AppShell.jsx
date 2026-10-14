@@ -150,6 +150,7 @@ export default function AppShell({ me, onLogout, children }) {
             {me
               ? <Link className="zs-topbar-avatar" to={`/users/${me.id}`} aria-label="Hồ sơ cá nhân"><Avatar name={me.tenDangNhap} avatar={me.avatar} size="small" /></Link>
               : <Link className="zs-cta zs-cta--small" to="/login">Đăng nhập <ArrowUpRight size={15}/></Link>}
+            {me && <button type="button" className="zs-topbar-logout" onClick={onLogout} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={17}/></button>}
           </div>
         </header>
         <div className="zs-layout">
