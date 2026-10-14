@@ -25,6 +25,7 @@ function App() {
     <AppShell me={me} onLogout={handleLogout}>
       <Routes>
         <Route path="/" element={<FeedPage me={me} />} />
+        <Route path="/following" element={me ? <FeedPage me={me} feedMode="following" /> : <Auth onAuth={setMe}/>} />
         <Route path="/login" element={<Auth onAuth={setMe} />} />
         <Route path="/posts/:id" element={<Detail me={me} />} />
         <Route path="/users/:id" element={<Profile me={me} />} />
