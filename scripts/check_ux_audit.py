@@ -25,7 +25,7 @@ assert "api('/timkiemnguoidung')" in app, "Suggestions should use real people"
 # One real composer (header action dispatches into the same form).
 assert "useState(false)" in feed, "Composer should be collapsed initially"
 assert "zenspace:compose" in app and "zenspace:compose" in feed
-assert "beforeunload" in feed, "Guard user drafts on refresh/close"
+assert "beforeunload" in feed and "guardNavigation" in feed, "Guard user drafts on reload and in-app navigation"
 assert "window.confirm" in feed, "Confirm when abandoning a draft"
 assert 'form.append(' not in feed, "Keep the FormData integration contract updated"
 assert "data.append('tieuDe'" in feed and "data.append('noiDung'" in feed

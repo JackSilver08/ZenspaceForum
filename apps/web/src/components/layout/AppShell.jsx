@@ -43,6 +43,11 @@ function AccountMenu({ me, onLogout }) {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
   useEffect(() => { setExpanded(false); }, [location.pathname]);
+  useEffect(() => {
+    const onEscape = (e) => {if(e.key==='Escape') setExpanded(false);};
+    window.addEventListener('keydown',onEscape);
+    return () => window.removeEventListener('keydown',onEscape);
+  }, []);
   if (!me) return <Link to="/login" className="zs-topbar-write"><LogIn size={16}/> Đăng nhập</Link>;
   return <div className="zs-account-wrap">
     <button type="button" className="zs-account-trigger" aria-expanded={expanded}

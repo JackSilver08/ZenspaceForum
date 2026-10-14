@@ -72,9 +72,25 @@ function Composer({ me, onPosted }) {
 
   useEffect(() => {
     if (!dirty) return;
-    const warn = (e) => {e.preventDefault();e.returnValue='';};
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    const guardNavigation = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!anchor || anchor.target === '_blank') return;
+      const destination = new URL(anchor.href, window.location.href);
+      const changesPage = destination.origin === window.location.origin &&
+        (destination.pathname !== window.location.pathname || destination.search !== window.location.search);
+      if (changesPage && !window.confirm('Bạn có bài viết chưa đăng. Rời trang và bỏ nội dung này?')) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    document.addEventListener('click', guardNavigation, true);
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      document.removeEventListener('click', guardNavigation, true);
+    };
   }, [dirty]);
 
   function reset() {
