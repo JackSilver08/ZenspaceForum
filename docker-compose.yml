@@ -30,7 +30,7 @@ services:
 
   backend:
     build:
-      context: ./docs/BACKEND
+      context: ./apps/api
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -41,6 +41,7 @@ services:
       DB_NAME: ZenSpaceDB
       JWT_SECRET: "${JWT_SECRET:?Run START.bat to generate local secrets first}"
       REDIS_ADDR: redis:6379
+      UPLOAD_DIR: /app/uploads
       PORT: "8080"
     ports:
       - "${API_PORT:-8081}:8080"
@@ -57,18 +58,17 @@ services:
       start_period: 10s
     volumes:
       - ./data/uploads:/app/uploads
-      - ./data/uploads:/uploads
 
   web:
-    image: nginx:alpine
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     ports:
       - "${WEB_PORT:-8089}:80"
-    volumes:
-      - ./data/uploads:/uploads:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
       interval: 5s

@@ -4,10 +4,14 @@ COPY go.mod ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -o /zenspace-api ./cmd/server
+
 FROM alpine:3.21
-RUN addgroup -S app && adduser -S app -G app
+RUN apk add --no-cache su-exec \
+    && addgroup -S app \
+    && adduser -S app -G app
 WORKDIR /app
 COPY --from=build /zenspace-api /app/server
-USER app
+COPY docker-entrypoint.sh /usr/local/bin/zenspace-entrypoint
+RUN chmod +x /usr/local/bin/zenspace-entrypoint
 EXPOSE 8080
-CMD ["/app/server"]
+ENTRYPOINT ["/usr/local/bin/zenspace-entrypoint"]
