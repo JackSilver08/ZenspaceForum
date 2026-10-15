@@ -28,6 +28,7 @@ CREATE TABLE `BaiDang` (
   `mediaUrl` varchar(255) DEFAULT NULL,
   `idTaiKhoan` int NOT NULL,
   `ngayTao` datetime DEFAULT CURRENT_TIMESTAMP,
+  `pinnedAt` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idTaiKhoan` (`idTaiKhoan`),
   CONSTRAINT `BaiDang_ibfk_1` FOREIGN KEY (`idTaiKhoan`) REFERENCES `TaiKhoan` (`id`) ON DELETE CASCADE

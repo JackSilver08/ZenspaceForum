@@ -53,5 +53,6 @@ func Migrate(db *sql.DB) error {
         "FOREIGN KEY (follower_id) REFERENCES TaiKhoan(id) ON DELETE CASCADE," +
         "FOREIGN KEY (following_id) REFERENCES TaiKhoan(id) ON DELETE CASCADE)")
     if err != nil { return err }
-    return MigrateContentOnlyPosts(db)
+    if err := MigrateContentOnlyPosts(db); err != nil { return err }
+    return MigratePostControls(db)
 }

@@ -20,10 +20,11 @@ type post struct {
     ID, OwnerID int
     Content, Media, Author, Avatar string
     Created time.Time
+    PinnedAt sql.NullTime
     Reactions gin.H
 }
 func (p post) JSON() gin.H {
-    return gin.H{"id":p.ID,"idTaiKhoan":p.OwnerID,"tenDangNhap":p.Author,"avatar":p.Avatar,"noiDung":p.Content,"mediaUrl":p.Media,"ngayDang":p.Created.Format(time.RFC3339),"reactions":p.Reactions}
+    return gin.H{"id":p.ID,"idTaiKhoan":p.OwnerID,"tenDangNhap":p.Author,"avatar":p.Avatar,"noiDung":p.Content,"mediaUrl":p.Media,"ngayDang":p.Created.Format(time.RFC3339),"reactions":p.Reactions,"isPinned":p.PinnedAt.Valid}
 }
 
 func emptyReactionCounts() gin.H {
@@ -66,13 +67,13 @@ func (a *App) listPosts(c *gin.Context) {
     limit, _ := strconv.Atoi(c.DefaultQuery("limit","30"))
     if limit < 1 { limit = 30 }; if limit > 100 { limit = 100 }
     rows,err := a.DB.QueryContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,'') FROM BaiDang b JOIN TaiKhoan t ON b.idTaiKhoan=t.id ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?", limit)
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt FROM BaiDang b JOIN TaiKhoan t ON b.idTaiKhoan=t.id ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?", limit)
     if err != nil { fail(c,500,"Không thể tải bài viết");return }
     defer rows.Close()
     data := make([]post,0)
     for rows.Next() {
         var p post
-        if err := rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar); err != nil { fail(c,500,"Lỗi dữ liệu bài viết"); return }
+        if err := rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt); err != nil { fail(c,500,"Lỗi dữ liệu bài viết"); return }
         data=append(data,p)
     }
     if rows.Err()!=nil { fail(c,500,"Lỗi đọc bài viết");return }
@@ -82,8 +83,8 @@ func (a *App) getPost(c *gin.Context) {
     id,ok:=intParam(c,"id");if !ok{return}
     var p post
     err:=a.DB.QueryRowContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,'') FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE b.id=?",id).
-        Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar)
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE b.id=?",id).
+        Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt)
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy bài viết");return}
     if err!=nil{fail(c,500,"Lỗi truy vấn");return}
     batch:=[]post{p}
