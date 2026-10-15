@@ -353,3 +353,61 @@ test('Sprint 3: minimal composer, privacy, edit history, archive and trash on de
   }
  }
 });
+
+test('Post media stays inside Feed and Profile cards for portrait and landscape images', async ({page}) => {
+  await page.goto('/');
+  for (const viewport of [{width:1440,height:900},{width:390,height:844}]) {
+    await page.setViewportSize(viewport);
+    const metrics=await page.evaluate(async()=>{
+      const host=document.querySelector('.zs-main');
+      if(!host)throw Error('Main content container missing');
+      const fixture=document.createElement('div');
+      fixture.id='zs-media-regression';
+      const specs=[
+        {name:'feed-portrait',css:'zs-post-card',media:'zs-post-media',w:600,h:960},
+        {name:'feed-landscape',css:'zs-post-card',media:'zs-post-media',w:1280,h:720},
+        {name:'profile-portrait',css:'card post p-3 mb-3',media:'zs-post-media zs-post-media--profile',w:600,h:960},
+        {name:'profile-landscape',css:'card post p-3 mb-3',media:'zs-post-media zs-post-media--profile',w:1280,h:720}
+      ];
+      const promises=specs.map(item=>new Promise((resolve,reject)=>{
+        const card=document.createElement('article');
+        card.className=item.css;
+        const stage=document.createElement('div');
+        stage.className=item.media;
+        const img=document.createElement('img');
+        img.alt=item.name;
+        img.onload=()=>resolve({item,card,stage,img});
+        img.onerror=()=>reject(Error('SVG layout fixture failed: '+item.name));
+        stage.append(img);card.append(stage);fixture.append(card);
+        img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="'+item.w+'" height="'+item.h+
+          '" viewBox="0 0 '+item.w+' '+item.h+'"><rect width="100%" height="100%" fill="#a9bbd1"/></svg>'
+        );
+      }));
+      host.append(fixture);
+      try{
+        const loaded=await Promise.all(promises);
+        return loaded.map(({item,card,stage,img})=>{
+          const c=card.getBoundingClientRect(),s=stage.getBoundingClientRect(),i=img.getBoundingClientRect();
+          return {name:item.name,cardWidth:c.width,stageWidth:s.width,imageWidth:i.width,imageHeight:i.height,
+            imageRatio:i.width/i.height,originalRatio:item.w/item.h,
+            cardRight:c.right,stageRight:s.right,imageRight:i.right,
+            stageBackground:getComputedStyle(stage).backgroundColor,
+            centeredOffset:Math.abs((i.left-s.left)-(s.right-i.right)),
+            bodyOverflow:document.documentElement.scrollWidth>window.innerWidth+1};
+        });
+      }finally{fixture.remove()}
+    });
+    for (const box of metrics){
+      expect(box.stageWidth,box.name+' stage must fit its card').toBeLessThanOrEqual(box.cardWidth+1);
+      expect(box.stageRight,box.name+' stage must not cross card').toBeLessThanOrEqual(box.cardRight+1);
+      expect(box.imageRight,box.name+' image must not cross stage').toBeLessThanOrEqual(box.stageRight+1);
+      expect(box.imageWidth,box.name+' image must fit container').toBeLessThanOrEqual(box.stageWidth+1);
+      expect(box.imageHeight,box.name+' image must have bounded height').toBeLessThanOrEqual(561);
+      expect(Math.abs(box.imageRatio-box.originalRatio),box.name+' ratio must be preserved').toBeLessThan(0.02);
+      expect(box.centeredOffset,box.name+' image should be centered').toBeLessThan(2);
+      expect(box.stageBackground,box.name+' should not show gray side gutters').toBe('rgba(0, 0, 0, 0)');
+      expect(box.bodyOverflow,box.name+' should not cause horizontal page overflow').toBe(false);
+    }
+  }
+});

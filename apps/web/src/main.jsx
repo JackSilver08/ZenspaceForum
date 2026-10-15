@@ -31,7 +31,7 @@ function Post({p,me,reload,onDeleted}) {
       <PostActionsMenu post={p} me={me} onChanged={reload} onDeleted={onDeleted || reload}/>
     </div>
     <p className="post-text mt-3"><Link className="zs-legacy-post-content-link" to={'/posts/'+p.id}>{p.noiDung}</Link></p>
-    {p.mediaUrl&&<PostMedia src={p.mediaUrl} className="post-media-wrapper"/>}
+    {p.mediaUrl&&<PostMedia src={p.mediaUrl} className="zs-post-media zs-post-media--profile"/>}
     <div className="d-flex gap-2 mt-3"><Link className="btn btn-light btn-sm" to={'/posts/'+p.id}>Bình luận</Link>
       {me&&<button className="btn btn-outline-primary btn-sm" onClick={react}>♥ Like {stats?.like||0}</button>}
     </div>{err&&<p className="text-danger">{err}</p>}
