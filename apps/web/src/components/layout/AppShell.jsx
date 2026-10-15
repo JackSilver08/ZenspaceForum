@@ -38,7 +38,7 @@ function Brand() {
 }
 
 function NavigationLink({ to, label, icon: Icon, end = false }) {
-  return <NavLink to={to} end={end} className={({isActive}) => 'zs-nav-item' + (isActive ? ' is-active' : '')}>
+  return <NavLink to={to} end={end} aria-label={label} title={label} className={({isActive}) => 'zs-nav-item' + (isActive ? ' is-active' : '')}>
     <Icon size={19} strokeWidth={1.8} aria-hidden="true"/>
     <span>{label}</span>
   </NavLink>;
@@ -101,6 +101,8 @@ function CommunitySuggestions({ me }) {
 }
 
 export default function AppShell({ me, onLogout, children }) {
+  const location = useLocation();
+  const showSuggestions = location.pathname === '/' || location.pathname === '/following';
   return <div className="zs-app">
     <header className="zs-topbar">
       <Brand/>
@@ -124,11 +126,11 @@ export default function AppShell({ me, onLogout, children }) {
         <div className="zs-sidebar-footer">ZENSPACE <span>✦</span> 2026</div>
       </aside>
       <div className="zs-content-area">
-        <div className="zs-layout">
+        <div className={showSuggestions ? "zs-layout" : "zs-layout zs-layout--wide"}>
           <main id="main-content" className="zs-main">{children}</main>
-          <aside className="zs-right-sidebar" aria-label="Gợi ý thành viên">
+          {showSuggestions && <aside className="zs-right-sidebar" aria-label="Gợi ý thành viên">
             <CommunitySuggestions me={me}/>
-          </aside>
+          </aside>}
         </div>
       </div>
     </div>

@@ -5,10 +5,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './style.css';
 import { api, getUser, getToken, saveSession, logout } from './api';
 import AppShell from './components/layout/AppShell.jsx';
-import FeedPage from './features/feed/FeedPage.jsx';
+import FeedPage, { PostCard } from './features/feed/FeedPage.jsx';
 import MessagesPage from './features/chat/MessagesPage.jsx';
 import PostActionsMenu from './features/feed/PostActionsMenu.jsx';
-import { Pin } from 'lucide-react';
+import { Pin, UserPlus, MessageCircle, Layers, Images, Orbit, Search, ArrowRight } from 'lucide-react';
 import BlockedUsersPage from './features/safety/BlockedUsersPage.jsx';
 import ModerationPage from './features/safety/ModerationPage.jsx';
 import ManagedPostsPage from './features/feed/ManagedPostsPage.jsx';
@@ -77,54 +77,201 @@ function Detail({me}){
     </section>
   </>;
 }
-function Profile({me}){
-  const {id}=useParams();
-  const [tick,setTick]=useState(0),[following,setFollowing]=useState(false);
-  const [followers,setFollowers]=useState(0),[blockStatus,setBlockStatus]=useState(null);
-  const [err,setErr]=useState('');
-  const {data,error}=useApi('/nguoidung/trangcanhan/'+id,tick);
-  useEffect(()=>{
-    let active=true;
+function Profile({ me }) {
+  const { id } = useParams();
+  const [refresh, setRefresh] = useState(0);
+  const [tab, setTab] = useState('posts');
+  const [following, setFollowing] = useState(false);
+  const [followers, setFollowers] = useState(null);
+  const [blockStatus, setBlockStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [reactions, setReactions] = useState({});
+  const [reactionLoading, setReactionLoading] = useState(Boolean(me));
+  const { data, error: loadError } = useApi('/nguoidung/trangcanhan/' + id, refresh);
+  const person = data?.data?.user;
+  const posts = Array.isArray(data?.data?.baiViets) ? data.data.baiViets : [];
+  const isSelf = Boolean(me && Number(me.id) === Number(id));
+  const isOther = Boolean(me && !isSelf);
+  const blocked = Boolean(blockStatus?.blocked || blockStatus?.blockedBy);
+
+  useEffect(() => { setTab('posts'); setFeedback(''); }, [id]);
+  useEffect(() => {
+    let live = true;
     setBlockStatus(null);
-    if(!me || Number(me.id)===Number(id))return()=>{active=false};
-    api('/v1/users/'+id+'/follow-status',{auth:true})
-      .then(r=>{if(active){setFollowing(r.following);setFollowers(r.followers)}}).catch(()=>{});
-    api('/v1/users/'+id+'/block-status',{auth:true})
-      .then(r=>{if(active)setBlockStatus(r)}).catch(e=>{if(active)setErr(e.message)});
-    return()=>{active=false};
-  },[id,me?.id,tick]);
-  async function follow(){
-    try{await api('/v1/users/'+id+'/follow',{auth:true,method:following?'DELETE':'POST'});
-      setTick(n=>n+1)}catch(e){setErr(e.message)}
+    setFollowers(null);
+    if (!isOther) return () => { live = false; };
+    api('/v1/users/' + id + '/follow-status', { auth: true })
+      .then(result => { if (live) { setFollowing(Boolean(result.following)); setFollowers(result.followers); } })
+      .catch(err => { if (live) setFeedback(err.message); });
+    api('/v1/users/' + id + '/block-status', { auth: true })
+      .then(result => { if (live) setBlockStatus(result); })
+      .catch(err => { if (live) setFeedback(err.message); });
+    return () => { live = false; };
+  }, [id, me?.id, isOther, refresh]);
+
+  useEffect(() => {
+    let live = true;
+    setReactions({});
+    if (!me || !person || posts.length === 0) {
+      setReactionLoading(false);
+      return () => { live = false; };
+    }
+    setReactionLoading(true);
+    const ids = posts.map(post => post.id).join(',');
+    api('/camxuc/cua-toi?ids=' + encodeURIComponent(ids), { auth: true })
+      .then(result => { if (live) setReactions(result.data || {}); })
+      .catch(err => { if (live) setFeedback('Không tải được cảm xúc: ' + err.message); })
+      .finally(() => { if (live) setReactionLoading(false); });
+    return () => { live = false; };
+  }, [data, me?.id]);
+
+  async function toggleFollow() {
+    if (busy) return;
+    setBusy(true); setFeedback('');
+    try {
+      await api('/v1/users/' + id + '/follow', { auth: true, method: following ? 'DELETE' : 'POST' });
+      setFollowing(current => !current);
+      setFollowers(current => current === null ? current : Math.max(0, current + (following ? -1 : 1)));
+      setRefresh(value => value + 1);
+    } catch (err) { setFeedback(err.message); }
+    finally { setBusy(false); }
   }
-  async function toggleBlock(){
-    const next=!blockStatus?.blocked;
-    if(next && !window.confirm('Chặn tài khoản này? Hai người sẽ không thể tương tác; quan hệ theo dõi bị xóa.'))return;
-    try{
-      await api('/v1/users/'+id+'/block',{auth:true,method:next?'PUT':'DELETE'});
-      setBlockStatus(previous=>({...previous,blocked:next}));setTick(n=>n+1);
-    }catch(e){setErr(e.message)}
+
+  async function toggleBlock() {
+    if (busy || !blockStatus) return;
+    const next = !blockStatus.blocked;
+    if (next && !window.confirm('Chặn tài khoản này? Quan hệ theo dõi sẽ bị hủy.')) return;
+    setBusy(true); setFeedback('');
+    try {
+      await api('/v1/users/' + id + '/block', { auth: true, method: next ? 'PUT' : 'DELETE' });
+      setBlockStatus(value => ({ ...value, blocked: next }));
+      setRefresh(value => value + 1);
+    } catch (err) { setFeedback(err.message); }
+    finally { setBusy(false); }
   }
-  const u=data?.data?.user, blocked=Boolean(blockStatus?.blocked || blockStatus?.blockedBy);
-  const stranger=Boolean(me && Number(me.id)!==Number(id));
-  return <>{(err||error)&&<p className="zs-error" role="alert">{err||error}</p>}
-    {u && <>
-      <div className="card post p-4 mb-3">
-        <h3>{u.tenDangNhap}</h3>
-        <p className="text-muted">{followers||u.followers||0} người theo dõi</p>
-        {stranger && blockStatus?.blocked && <p className="zs-comment-closed">Bạn đã chặn tài khoản này.</p>}
-        {stranger && blockStatus?.blockedBy && <p className="zs-comment-closed">Tài khoản này đã chặn bạn.</p>}
-        {stranger && !blocked && <Link to={'/messages?user='+id} className="btn btn-outline-primary me-2">Nhắn tin</Link>}
-        {stranger && !blocked && <button type="button" className="btn btn-primary me-2" onClick={follow}>{following?'Bỏ theo dõi':'Theo dõi'}</button>}
-        {stranger && <button type="button" className="btn btn-outline-danger" onClick={toggleBlock}>{blockStatus?.blocked?'Bỏ chặn':'Chặn tài khoản'}</button>}
-      </div>
-      {blocked ? <p className="zs-comment-closed">Bài viết của thành viên không được hiển thị khi quan hệ chặn đang có hiệu lực.</p>
-        : data.data.baiViets.map(p=><Post key={p.id} p={{...p,tenDangNhap:u.tenDangNhap,avatar:u.avatar}}
-            me={me} reload={()=>setTick(n=>n+1)}/>)}
+
+  function reactionChanged(postId, kind) {
+    setReactions(current => {
+      const next = { ...current };
+      if (kind) next[String(postId)] = kind;
+      else delete next[String(postId)];
+      return next;
+    });
+  }
+
+  const visiblePosts = tab === 'media' ? posts.filter(post => Boolean(post.mediaUrl)) : posts;
+  const count = followers ?? person?.followers ?? 0;
+  return <div className="zs-profile-page">
+    {(feedback || loadError) && <p className="zs-error" role="alert">{feedback || loadError}</p>}
+    {!person && !loadError && <p className="zs-panel-status" role="status">Đang tải không gian cá nhân...</p>}
+    {person && <>
+      <section className="zs-profile-hero" aria-label={'Hồ sơ của ' + person.tenDangNhap}>
+        <div className="zs-profile-cover" aria-hidden="true">
+          <span className="zs-profile-orbit zs-profile-orbit--one" />
+          <span className="zs-profile-orbit zs-profile-orbit--two" />
+          <span className="zs-profile-star zs-profile-star--one" />
+          <span className="zs-profile-star zs-profile-star--two" />
+        </div>
+        <div className="zs-profile-info">
+          <div className="zs-profile-avatar"><Avatar name={person.tenDangNhap} avatar={person.avatar} size="large" /></div>
+          <div className="zs-profile-identity">
+            <p className="zs-profile-eyebrow">KHÔNG GIAN CÁ NHÂN · ZENSPACE</p>
+            <h1>{person.tenDangNhap}</h1>
+            <p className="zs-profile-subtitle">{isSelf ? 'Không gian của bạn trên ZenSpace' : 'Một thành viên trong cộng đồng ZenSpace'}</p>
+            <div className="zs-profile-stats">
+              <span><strong>{count}</strong> người theo dõi</span>
+              <span><strong>{person.following ?? 0}</strong> đang theo dõi</span>
+            </div>
+          </div>
+          <div className="zs-profile-actions">
+            {isOther && blockStatus && !blocked && <>
+              <button type="button" className="zs-nebula-button zs-nebula-button--primary" onClick={toggleFollow} disabled={busy}>
+                <UserPlus size={17}/>{following ? 'Bỏ theo dõi' : 'Theo dõi'}
+              </button>
+              <Link to={'/messages?user=' + id} className="zs-nebula-button zs-nebula-button--secondary"><MessageCircle size={17}/> Nhắn tin</Link>
+            </>}
+            {isOther && blockStatus && <button type="button" className="zs-profile-block" disabled={busy} onClick={toggleBlock}>
+              {blockStatus.blocked ? 'Bỏ chặn tài khoản' : 'Chặn tài khoản'}
+            </button>}
+          </div>
+        </div>
+        {isOther && blocked && <p className="zs-profile-notice" role="status">{blockStatus?.blocked ? 'Bạn đã chặn tài khoản này.' : 'Tài khoản này đã chặn bạn.'}</p>}
+      </section>
+      {!blocked && <>
+        <nav className="zs-profile-tabs" aria-label="Nội dung hồ sơ">
+          <button type="button" className={tab === 'posts' ? 'is-active' : ''} aria-current={tab === 'posts' ? 'page' : undefined} onClick={() => setTab('posts')}><Layers size={17}/> Bài viết</button>
+          <button type="button" className={tab === 'media' ? 'is-active' : ''} aria-current={tab === 'media' ? 'page' : undefined} onClick={() => setTab('media')}><Images size={17}/> Ảnh & video</button>
+        </nav>
+        <div className="zs-profile-feed">
+          {visiblePosts.length ? visiblePosts.map(post => (
+            <PostCard key={post.id} post={{ ...post, tenDangNhap: person.tenDangNhap, avatar: person.avatar }}
+              me={me} selectedReaction={reactions[String(post.id)] || null} reactionLoading={reactionLoading}
+              onReactionChange={reactionChanged} onSavedChange={() => setRefresh(value => value + 1)}
+              onHidden={() => setRefresh(value => value + 1)} onDelete={() => setRefresh(value => value + 1)} />
+          )) : <div className="zs-nebula-empty"><Orbit size={29} aria-hidden="true"/>
+            <h2>{tab === 'media' ? 'Chưa có ảnh hoặc video' : 'Chưa có bài viết'}</h2>
+            <p>{tab === 'media' ? 'Những khoảnh khắc được chia sẻ sẽ xuất hiện ở đây.' : 'Không gian này đang chờ câu chuyện đầu tiên.'}</p>
+          </div>}
+        </div>
+      </>}
     </>}
-  </>;
+  </div>;
 }
-function Explore(){const[q,setQ]=useState(''),[term,setTerm]=useState('');const{data}=useApi(term?'/timkiemnguoidung?key='+encodeURIComponent(term):'/timkiemnguoidung');return <><h3>Khám phá thành viên</h3><form className="d-flex gap-2" onSubmit={e=>{e.preventDefault();setTerm(q)}}><input className="form-control" value={q} onChange={e=>setQ(e.target.value)} minLength={2} placeholder="Tìm tên"/><button className="btn btn-primary">Tìm</button></form>{data?.data?.map(u=><div className="card p-3 mt-2" key={u.id}><Link to={'/users/'+u.id}>{u.tenDangNhap}</Link></div>)}</>}
+function Explore() {
+  const [query, setQuery] = useState('');
+  const [term, setTerm] = useState('');
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setTerm(query.trim()), 300);
+    return () => window.clearTimeout(handle);
+  }, [query]);
+  useEffect(() => {
+    let live = true;
+    setLoading(true); setError('');
+    const url = term.length >= 2 ? '/timkiemnguoidung?key=' + encodeURIComponent(term) : '/timkiemnguoidung';
+    api(url)
+      .then(result => { if (live) setMembers(Array.isArray(result.data) ? result.data : []); })
+      .catch(err => { if (live) setError(err.message); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [term]);
+  const shown = query.trim().length === 1
+    ? members.filter(person => person.tenDangNhap?.toLowerCase().includes(query.trim().toLowerCase()))
+    : members;
+  return <div className="zs-explore-page">
+    <header className="zs-explore-heading">
+      <p className="zs-profile-eyebrow">ZENSPACE / KHÁM PHÁ</p>
+      <h1>Khám phá thành viên</h1>
+      <p>Kết nối với những người bạn muốn đồng hành.</p>
+    </header>
+    <div className="zs-explore-search">
+      <Search size={20} aria-hidden="true"/>
+      <label className="visually-hidden" htmlFor="zs-explore-query">Tìm kiếm thành viên</label>
+      <input id="zs-explore-query" type="search" value={query} onChange={event => setQuery(event.target.value)}
+        placeholder="Tìm thành viên theo tên..." autoComplete="off" />
+    </div>
+    {loading && <p className="zs-panel-status" role="status">Đang tìm kiếm thành viên...</p>}
+    {error && <p className="zs-error" role="alert">Không tải được danh sách thành viên: {error}</p>}
+    {!loading && !error && <>
+      <h2 className="zs-explore-section-title">{query.trim() ? 'Kết quả tìm kiếm' : 'Thành viên cộng đồng'}</h2>
+      {shown.length ? <div className="zs-member-grid">
+        {shown.map(person => <article className="zs-member-card" key={person.id}>
+          <div className="zs-member-avatar"><Avatar name={person.tenDangNhap} avatar={person.avatar} size="large"/></div>
+          <div className="zs-member-info">
+            <h3><Link to={'/users/' + person.id}>{person.tenDangNhap}</Link></h3>
+            <p>Thành viên ZenSpace</p>
+          </div>
+          <Link className="zs-member-action" to={'/users/' + person.id}>Xem hồ sơ <ArrowRight size={15}/></Link>
+        </article>)}
+      </div> : <div className="zs-nebula-empty"><Search size={29} aria-hidden="true"/>
+        <h2>Không tìm thấy thành viên</h2><p>Hãy thử một tên khác để khám phá cộng đồng.</p></div>}
+    </>}
+  </div>;
+}
 function App() {
   const [me, setMe] = useState(getUser());
   const navigate = useNavigate();

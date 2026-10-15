@@ -270,3 +270,5 @@ export default function FeedPage({me, feedMode = 'community'}) {
     </div>}
   </div>;
 }
+
+export { PostCard };

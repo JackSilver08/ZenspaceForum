@@ -411,3 +411,17 @@ test('Post media stays inside Feed and Profile cards for portrait and landscape 
     }
   }
 });
+
+test('Nebula Pearl member discovery opens a real profile with post and media tabs', async ({ page }) => {
+  await page.goto('/explore');
+  await expect(page.getByRole('heading', { name: 'Khám phá thành viên' })).toBeVisible();
+  const member = page.locator('.zs-member-card').first();
+  await expect(member).toBeVisible();
+  await member.getByRole('link', { name: 'Xem hồ sơ' }).click();
+  await expect(page.locator('.zs-profile-hero')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bài viết' })).toBeVisible();
+  const mediaTab = page.getByRole('button', { name: 'Ảnh & video' });
+  await mediaTab.click();
+  await expect(mediaTab).toHaveClass(/is-active/);
+  await expect(page.locator('.zs-profile-feed')).toBeVisible();
+});
