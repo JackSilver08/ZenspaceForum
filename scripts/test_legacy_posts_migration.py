@@ -33,7 +33,7 @@ def restart_and_wait():
         try:
             with urlopen("http://127.0.0.1:8081/healthz",timeout=2) as resp:
                 if resp.status==200: return
-        except (URLError, TimeoutError):
+        except (OSError, TimeoutError):
             pass
         time.sleep(2)
     raise RuntimeError("Gin API never became healthy after legacy migration")
