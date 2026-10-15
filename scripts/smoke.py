@@ -317,6 +317,9 @@ api(f"/v1/moderation/reports/{record['id']}","PUT",{"status":"actioned"},old["to
 api(f"/v1/moderation/reports/{record['id']}","PUT",{"status":"dismissed"},old["token"],409)
 api(f"/baiviet/{report_target}","DELETE",token=token)
 stored=next(r for r in api("/v1/moderation/reports?status=all",token=old["token"])["data"] if r["id"]==record["id"])
+assert stored["postId"]==report_target and stored["snapshot"]=="Evidence survives deleting a post"
+api(f"/v1/posts/{report_target}/permanent","DELETE",token=token)
+stored=next(r for r in api("/v1/moderation/reports?status=all",token=old["token"])["data"] if r["id"]==record["id"])
 assert stored["postId"] is None and stored["snapshot"]=="Evidence survives deleting a post"
 print("Sprint 2 safety regressions OK: report/admin moderation, block, closed comments, comment owner moderation")
 
