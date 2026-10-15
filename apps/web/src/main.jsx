@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './style.css';
-import { api, getUser, saveSession, logout } from './api';
+import { api, getUser, getToken, saveSession, logout } from './api';
 import AppShell from './components/layout/AppShell.jsx';
 import FeedPage from './features/feed/FeedPage.jsx';
 import MessagesPage from './features/chat/MessagesPage.jsx';
@@ -11,7 +11,9 @@ import PostActionsMenu from './features/feed/PostActionsMenu.jsx';
 import { Pin } from 'lucide-react';
 import BlockedUsersPage from './features/safety/BlockedUsersPage.jsx';
 import ModerationPage from './features/safety/ModerationPage.jsx';
-function useApi(url,version){const[data,setData]=useState(null),[error,setError]=useState('');useEffect(()=>{if(!url)return;let live=true;api(url, url.startsWith('/chat/') ? { auth: true } : undefined).then(d=>{if(live){setData(d);setError('')}}).catch(e=>live&&setError(e.message));return()=>{live=false}},[url,version]);return{data,error}}
+import ManagedPostsPage from './features/feed/ManagedPostsPage.jsx';
+import PostMedia from './features/feed/PostMedia.jsx';
+function useApi(url,version){const[data,setData]=useState(null),[error,setError]=useState('');useEffect(()=>{if(!url)return;let live=true;api(url, getToken() ? {auth:true}:undefined).then(d=>{if(live){setData(d);setError('')}}).catch(e=>live&&setError(e.message));return()=>{live=false}},[url,version]);return{data,error}}
 function Auth({onAuth}){const[register,setRegister]=useState(false),[user,setUser]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[err,setErr]=useState('');const nav=useNavigate();async function submit(e){e.preventDefault();try{const d=await api(register?'/DangKy':'/DangNhap',{method:'POST',body:register?{username:user,email,password,confirmPassword}:{TenDangNhap:user,MatKhau:password}});saveSession(d);onAuth(d.user);nav('/')}catch(e){setErr(e.message)}}return <form className="card p-4 shadow-sm auth mx-auto" onSubmit={submit}><h2 className="fw-bold">ZenSpace</h2><p className="text-muted">{register?'Tạo tài khoản':'Đăng nhập'}</p>{err&&<div className="alert alert-danger">{err}</div>}<input className="form-control mb-2" placeholder="Tên đăng nhập" value={user} onChange={e=>setUser(e.target.value)} required/>{register&&<input className="form-control mb-2" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>}<input className="form-control mb-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} required/>{register&&<input className="form-control mb-2" type="password" placeholder="Xác nhận mật khẩu" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required/>}<button className="btn btn-primary">{register?'Đăng ký':'Đăng nhập'}</button><button className="btn btn-link" type="button" onClick={()=>setRegister(!register)}>{register?'Đã có tài khoản?':'Chưa có tài khoản?'}</button></form>}
 function Post({p,me,reload,onDeleted}) {
   const [stats,setStats]=useState(p.reactions||null),[err,setErr]=useState('');
@@ -29,7 +31,7 @@ function Post({p,me,reload,onDeleted}) {
       <PostActionsMenu post={p} me={me} onChanged={reload} onDeleted={onDeleted || reload}/>
     </div>
     <p className="post-text mt-3"><Link className="zs-legacy-post-content-link" to={'/posts/'+p.id}>{p.noiDung}</Link></p>
-    {p.mediaUrl&&(p.mediaUrl.toLowerCase().endsWith('.mp4')?<video controls className="post-media" src={p.mediaUrl}/>:<img className="post-media" src={p.mediaUrl} alt="Media"/>)}
+    {p.mediaUrl&&<PostMedia src={p.mediaUrl} className="post-media-wrapper"/>}
     <div className="d-flex gap-2 mt-3"><Link className="btn btn-light btn-sm" to={'/posts/'+p.id}>Bình luận</Link>
       {me&&<button className="btn btn-outline-primary btn-sm" onClick={react}>♥ Like {stats?.like||0}</button>}
     </div>{err&&<p className="text-danger">{err}</p>}
@@ -137,6 +139,8 @@ function App() {
         <Route path="/" element={<FeedPage me={me} />} />
         <Route path="/following" element={me ? <FeedPage me={me} feedMode="following" /> : <Auth onAuth={setMe}/>} />
         <Route path="/saved" element={me ? <FeedPage me={me} feedMode="saved" /> : <Auth onAuth={setMe}/>} />
+        <Route path="/archive" element={me?<ManagedPostsPage state="archived"/>:<Auth onAuth={setMe}/>} />
+        <Route path="/trash" element={me?<ManagedPostsPage state="trashed"/>:<Auth onAuth={setMe}/>} />
         <Route path="/blocked" element={me ? <BlockedUsersPage/> : <Auth onAuth={setMe}/>} />
         <Route path="/moderation" element={me?.phanQuyen === 'admin' ? <ModerationPage me={me}/> : <div className="zs-not-found">Không có quyền truy cập.</div>} />
         <Route path="/login" element={<Auth onAuth={setMe} />} />

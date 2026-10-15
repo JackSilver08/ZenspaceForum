@@ -48,6 +48,11 @@ func main() {
         defer redisClient.Close()
     }
     app := &httpapi.App{DB: db, Redis: redisClient, Secret: []byte(cfg.JWTSecret), UploadDir: cfg.UploadDir}
+    app.PurgeExpiredPosts()
+    go func(){
+        ticker:=time.NewTicker(12*time.Hour);defer ticker.Stop()
+        for range ticker.C {app.PurgeExpiredPosts()}
+    }()
     router := app.Router()
     log.Printf("Zenspace API listening on :%s", cfg.Port)
     if err := router.Run(":" + cfg.Port); err != nil { log.Fatal(err) }

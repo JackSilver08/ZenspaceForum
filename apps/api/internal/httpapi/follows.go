@@ -9,14 +9,14 @@ func (a *App) feed(c *gin.Context){
     limit,err:=strconv.Atoi(c.DefaultQuery("limit","30"));if err!=nil||limit<1{limit=30};if limit>100{limit=100}
     // The author's own posts plus followed accounts; add index-based cursor pagination later.
     rows,err:=a.DB.QueryContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE (b.idTaiKhoan=? OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=b.idTaiKhoan)) AND NOT EXISTS(SELECT 1 FROM post_hides h WHERE h.post_id=b.id AND h.user_id=?) AND NOT EXISTS(SELECT 1 FROM user_blocks bl WHERE (bl.blocker_id=? AND bl.blocked_id=b.idTaiKhoan) OR (bl.blocked_id=? AND bl.blocker_id=b.idTaiKhoan)) ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?",
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled,b.visibility,b.lifecycle_state,b.revision,b.updated_at FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE "+accessiblePostSQL("b",userID(c))+" AND (b.idTaiKhoan=? OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=b.idTaiKhoan)) AND NOT EXISTS(SELECT 1 FROM post_hides h WHERE h.post_id=b.id AND h.user_id=?) AND NOT EXISTS(SELECT 1 FROM user_blocks bl WHERE (bl.blocker_id=? AND bl.blocked_id=b.idTaiKhoan) OR (bl.blocked_id=? AND bl.blocker_id=b.idTaiKhoan)) ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?",
         userID(c),userID(c),userID(c),userID(c),userID(c),limit)
     if err!=nil{fail(c,500,"Không tải được bảng tin");return}
     defer rows.Close()
     posts:=make([]post,0)
     for rows.Next(){
         var p post
-        if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled);err!=nil{fail(c,500,"Lỗi bảng tin");return}
+        if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled,&p.Visibility,&p.State,&p.Revision,&p.UpdatedAt);err!=nil{fail(c,500,"Lỗi bảng tin");return}
         posts=append(posts,p)
     }
     if rows.Err()!=nil{fail(c,500,"Lỗi bảng tin");return}

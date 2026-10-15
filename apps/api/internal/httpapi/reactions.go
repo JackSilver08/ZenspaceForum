@@ -15,6 +15,7 @@ import (
 var reactionTypes=[]string{"like","dislike","love","haha","wow","sad","angry"}
 func (a *App) reactionStats(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}
+    if !a.requireView(c,id){return}
     key:=fmt.Sprintf("reactions:%d",id)
     if a.Redis!=nil {
         rctx, cancel := context.WithTimeout(c.Request.Context(), 100*time.Millisecond)
@@ -41,6 +42,7 @@ func (a *App) reactionStats(c *gin.Context){
 }
 func (a *App) react(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}
+    if !a.requireView(c,id){return}
     var body map[string]interface{}
     if err:=c.ShouldBindJSON(&body);err!=nil{fail(c,400,"JSON không hợp lệ");return}
     kind:=textVal(body,"loaiCamXuc")
@@ -99,7 +101,7 @@ func (a *App) myReactions(c *gin.Context) {
         args = append(args, id)
         placeholders = append(placeholders, "?")
     }
-    query := "SELECT idBaiDang,loaiCamXuc FROM Cam_Xuc WHERE idTaiKhoan=? AND idBaiDang IN (" + strings.Join(placeholders, ",") + ")"
+    query := "SELECT x.idBaiDang,x.loaiCamXuc FROM Cam_Xuc x JOIN BaiDang b ON b.id=x.idBaiDang WHERE x.idTaiKhoan=? AND "+accessiblePostSQL("b",userID(c))+" AND x.idBaiDang IN (" + strings.Join(placeholders, ",") + ")"
     rows, err := a.DB.QueryContext(c.Request.Context(), query, args...)
     if err != nil { fail(c, 500, "Không tải được cảm xúc đã chọn"); return }
     defer rows.Close()
@@ -116,6 +118,7 @@ func (a *App) myReactions(c *gin.Context) {
 
 func (a *App) unreact(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}
+    if !a.requireView(c,id){return}
     _,err:=a.DB.ExecContext(c.Request.Context(),"DELETE FROM Cam_Xuc WHERE idBaiDang=? AND idTaiKhoan=?",id,userID(c))
     if err!=nil{fail(c,500,"Không thể hủy cảm xúc");return}
     if a.Redis!=nil{

@@ -8,6 +8,8 @@ import {
 import { api } from '../../api';
 import { Avatar } from '../../components/layout/AppShell';
 import PostActionsMenu from './PostActionsMenu.jsx';
+import Composer from './Composer.jsx';
+import PostMedia from './PostMedia.jsx';
 
 const reactionOptions = [
   { key: 'like', symbol: '👍', label: 'Thích' },
@@ -25,159 +27,6 @@ const formatDate = (value) => {
   if (Number.isNaN(parsed.getTime())) return '';
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(parsed);
 };
-
-function Media({ src, title = '' }) {
-  if (!src) return null;
-  const url = src.startsWith('http') || src.startsWith('/') ? src : '/' + src;
-  const noParams = url.split('?')[0].toLowerCase();
-  return (
-    <div className="zs-post-media">
-      {noParams.endsWith('.mp4') ? (
-        <video controls preload="metadata" src={url} aria-label={title || 'Video bài viết'} />
-      ) : (
-        <img loading="lazy" src={url} alt={title ? `Hình ảnh của bài viết: ${title}` : 'Hình ảnh bài viết'} />
-      )}
-    </div>
-  );
-}
-
-function Composer({ me, onPosted }) {
-  const [expanded, setExpanded] = useState(false);
-  const [body, setBody] = useState('');
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState('');
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const picker = useRef(null);
-  const bodyRef = useRef(null);
-  const dirty = Boolean(body.trim() || file);
-
-  useEffect(() => {
-    if (!file || !file.type.startsWith('image/')) { setPreview(''); return; }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  useEffect(() => {
-    function openComposer() {
-      setExpanded(true);
-      setTimeout(() => bodyRef.current?.focus(), 0);
-    }
-    window.addEventListener('zenspace:compose', openComposer);
-    if (window.location.hash === '#compose') openComposer();
-    return () => window.removeEventListener('zenspace:compose', openComposer);
-  }, []);
-
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
-    const guardNavigation = (event) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
-      if (!anchor || anchor.target === '_blank') return;
-      const destination = new URL(anchor.href, window.location.href);
-      const changesPage = destination.origin === window.location.origin &&
-        (destination.pathname !== window.location.pathname || destination.search !== window.location.search);
-      if (changesPage && !window.confirm('Bạn có bài viết chưa đăng. Rời trang và bỏ nội dung này?')) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    };
-    window.addEventListener('beforeunload', warn);
-    document.addEventListener('click', guardNavigation, true);
-    return () => {
-      window.removeEventListener('beforeunload', warn);
-      document.removeEventListener('click', guardNavigation, true);
-    };
-  }, [dirty]);
-
-  function reset() {
-    if (dirty && !window.confirm('Bỏ nội dung bài viết chưa lưu?')) return;
-    setBody(''); setFile(null); setPreview('');
-    setError(''); setExpanded(false);
-    if (picker.current) picker.current.value = '';
-  }
-
-  function selectFile(e) {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-    const accepted = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4'];
-    if (!accepted.includes(selected.type)) {
-      setError('Chỉ hỗ trợ JPG, PNG, WEBP, GIF hoặc MP4.');
-      e.target.value = ''; return;
-    }
-    if (selected.size > 20 * 1024 * 1024) {
-      setError('Tệp không được vượt quá 20 MB.');
-      e.target.value = ''; return;
-    }
-    setFile(selected); setError(''); setExpanded(true);
-  }
-
-  async function publish(event) {
-    event.preventDefault();
-    if (!body.trim() || submitting) return;
-    setSubmitting(true); setError(''); setNotice('');
-    try {
-      const data = new FormData();
-      data.append('noiDung', body.trim());
-      if (file) data.append('file', file);
-      await api('/baiviet', {method:'POST', body:data, auth:true});
-      setBody(''); setFile(null); setExpanded(false);
-      if (picker.current) picker.current.value = '';
-      setNotice('Đã đăng bài thành công.');
-      onPosted();
-    } catch(err) {setError(err.message || 'Không đăng được bài viết.');}
-    finally {setSubmitting(false);}
-  }
-
-  if (!me) return <section id="compose" className="zs-login-nudge">
-    <p>Muốn chia sẻ câu chuyện của bạn?</p>
-    <Link to="/login" className="zs-cta">Đăng nhập để viết bài <ArrowRight size={16}/></Link>
-  </section>;
-
-  return <section className={'zs-composer' + (expanded ? ' is-expanded' : '')} id="compose" aria-label="Tạo bài viết">
-    <div className="zs-composer-top">
-      <Avatar name={me.tenDangNhap} avatar={me.avatar}/>
-      <button type="button" className="zs-composer-trigger" onClick={() => {setExpanded(true);bodyRef.current?.focus();}}
-        aria-expanded={expanded} aria-controls="zs-composer-fields">
-        {expanded ? 'Tạo bài viết' : 'Bạn đang nghĩ gì?'}
-        {!expanded && <PenLine size={18} aria-hidden="true"/>}
-      </button>
-    </div>
-    {expanded && <form id="zs-composer-fields" className="zs-composer-form" onSubmit={publish}>
-      <label htmlFor="zs-post-body">Nội dung bài viết</label>
-      <textarea id="zs-post-body" ref={bodyRef} className="zs-input zs-body-input"
-        value={body} onChange={e=>setBody(e.target.value)} rows={4} maxLength={10000}
-        placeholder="Bạn đang nghĩ gì? Chia sẻ điều gì đó với cộng đồng..." required/>
-      <div className="zs-composer-counter" aria-live="polite">{body.length.toLocaleString('vi-VN')} / 10.000 ký tự</div>
-      {file && <div className="zs-composer-attachment">
-        {preview && <img src={preview} alt="Xem trước ảnh đính kèm"/>}
-        <span>{file.name}</span>
-        <button type="button" onClick={()=>{setFile(null);if(picker.current)picker.current.value='';}} aria-label="Bỏ tệp đính kèm"><X size={17}/></button>
-      </div>}
-      {error && <p className="zs-error" role="alert">{error}</p>}
-      <div className="zs-composer-bottom">
-        <button type="button" className="zs-composer-tool" onClick={()=>picker.current?.click()} disabled={submitting}>
-          <ImagePlus size={18}/> Ảnh / Video
-        </button>
-        <div className="zs-composer-buttons">
-          <button type="button" className="zs-text-button" onClick={reset} disabled={submitting}>Hủy</button>
-          <button className="zs-cta zs-cta--publish" type="submit"
-            disabled={submitting || !body.trim()}>
-            <Send size={16}/> {submitting ? 'Đang đăng...' : 'Đăng bài'}
-          </button>
-        </div>
-      </div>
-    </form>}
-    <input ref={picker} className="visually-hidden" type="file"
-      accept="image/jpeg,image/png,image/webp,image/gif,video/mp4"
-      onChange={selectFile} aria-label="Chọn ảnh hoặc video"/>
-    {!expanded && error && <p className="zs-error" role="alert">{error}</p>}
-    {notice && <p className="zs-success" role="status">{notice}</p>}
-  </section>;
-}
 
 function PostCard({ post, me, onDelete, onHidden, saved, onSavedChange, selectedReaction, onReactionChange, reactionLoading }) {
   const [stats, setStats] = useState(post.reactions || null);
@@ -239,6 +88,9 @@ function PostCard({ post, me, onDelete, onHidden, saved, onSavedChange, selected
           <Link to={`/users/${post.idTaiKhoan}`} className="zs-post-author-name">{author}</Link>
           <div className="zs-post-meta"><time>{formatDate(post.ngayDang)}</time>
             {post.isPinned && <span className="zs-pinned-indicator"><Pin size={12}/> Đã ghim</span>}
+            {post.visibility==='followers'&&<small>· Người theo dõi</small>}
+            {post.visibility==='private'&&<small>· Chỉ mình tôi</small>}
+            {post.edited&&<small>· Đã chỉnh sửa</small>}
           </div>
         </div>
         <PostActionsMenu post={post} me={me} saved={saved} onSavedChange={onSavedChange}
@@ -247,7 +99,7 @@ function PostCard({ post, me, onDelete, onHidden, saved, onSavedChange, selected
       <div className="zs-post-content">
         <Link to={`/posts/${id}`} className="zs-post-body-link">{post.noiDung}</Link>
       </div>
-      <Media src={post.mediaUrl} />
+      <PostMedia src={post.mediaUrl} />
       {count > 0 && <div className="zs-post-engagement">{count} lượt cảm xúc</div>}
       <div className="zs-post-actions">
         {me ? (

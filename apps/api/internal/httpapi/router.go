@@ -114,7 +114,7 @@ func (a *App) Router() *gin.Engine {
         if err := a.DB.PingContext(c.Request.Context()); err != nil { fail(c, 503, "Database unavailable"); return }
         c.JSON(200, gin.H{"status":"ok"})
     })
-    r.Static("/uploads", a.UploadDir)
+    r.GET("/uploads/*filepath", a.serveUpload)
 
     api := r.Group("/api")
     api.POST("/DangKy", a.register)
@@ -129,9 +129,17 @@ func (a *App) Router() *gin.Engine {
 
     secured := api.Group("/")
     secured.Use(a.auth)
+    secured.PATCH("/v1/posts/:id/visibility",a.changeVisibility)
+    secured.PUT("/v1/posts/:id/archive",a.archivePost)
+    secured.DELETE("/v1/posts/:id/archive",a.unarchivePost)
+    secured.GET("/v1/me/posts/:state",a.listManagedPosts)
+    secured.POST("/v1/posts/:id/restore",a.restorePost)
+    secured.DELETE("/v1/posts/:id/permanent",a.permanentlyDeletePost)
+    secured.GET("/v1/posts/:id/history",a.postHistory)
+    secured.POST("/v1/posts/:id/revisions/:revision/restore",a.restoreRevision)
     secured.POST("/baiviet", a.createPost)
     secured.PUT("/baiviet/:id", a.updatePost)
-    secured.DELETE("/baiviet/:id", a.deletePost)
+    secured.DELETE("/baiviet/:id", a.trashPost)
     secured.POST("/binhluan", a.addComment)
     secured.DELETE("/binhluan/:id", a.deleteComment)
     secured.DELETE("/binhluan/xoa/:id", a.deleteComment)
