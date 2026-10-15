@@ -358,7 +358,8 @@ export default function FeedPage({me, feedMode = 'community'}) {
     if(savedMode && !enabled) setPosts(previous=>previous.filter(p=>Number(p.id)!==Number(postId)));
   }
   function hiddenPost(postId){
-    setPosts(previous=>previous.filter(p=>Number(p.id)!==Number(postId)));
+    // Hiding removes a post from feeds, not from the user's private Saved collection.
+    if(!savedMode)setPosts(previous=>previous.filter(p=>Number(p.id)!==Number(postId)));
     setNotice({id:postId});
   }
   async function undoHide() {
@@ -411,7 +412,7 @@ export default function FeedPage({me, feedMode = 'community'}) {
         reactionLoading={reactionLoading} onReactionChange={onReactionChange}
         onDelete={reload}/>)}
     </div> : <div className="zs-feed-empty">
-      <h3>Chưa có bài viết</h3>
+      <h3>{savedMode ? 'Chưa có bài viết đã lưu' : 'Chưa có bài viết'}</h3>
       <p>{savedMode ? 'Bạn chưa lưu bài viết nào.' : following ? 'Theo dõi thêm thành viên để đọc những câu chuyện của họ.' : 'Cộng đồng đang chờ bài viết đầu tiên.'}</p>
       <Link to="/explore" className="zs-outline-button">Khám phá thành viên <ArrowRight size={15}/></Link>
     </div>}
