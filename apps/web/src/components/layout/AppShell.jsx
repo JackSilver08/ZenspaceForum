@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   ArrowRight, Compass, Home, LogIn, LogOut, MessageCircle,
-  PenLine, Search, UserRound, Users, Orbit, ChevronDown
+  PenLine, Search, UserRound, Users, Orbit, ChevronDown, Bookmark
 } from 'lucide-react';
 import { api } from '../../api';
 
 const links = [
   { to: '/', label: 'Bảng tin', icon: Home, end: true },
   { to: '/following', label: 'Đang theo dõi', icon: Users, private: true },
+  { to: '/saved', label: 'Đã lưu', icon: Bookmark, private: true },
   { to: '/explore', label: 'Khám phá', icon: Compass },
   { to: '/messages', label: 'Tin nhắn', icon: MessageCircle, private: true },
 ];

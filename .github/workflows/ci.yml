@@ -35,6 +35,7 @@ jobs:
           python3 scripts/check_stitch_design.py
           python3 scripts/check_ux_audit.py
           python3 scripts/check_content_posts.py
+          python3 scripts/check_post_controls.py
       - name: Install dependencies and build
         working-directory: apps/web
         run: |

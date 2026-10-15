@@ -115,3 +115,78 @@ test('selected reaction appears, survives reload, switches and toggles off', asy
     });
   }
 });
+
+test('Post Control Center edits, pins, saves, hides and restores posts', async ({ page, request }) => {
+  const errors = collectErrors(page);
+  const stamp = Date.now().toString(36);
+  const pass = 'PostControls_123!_' + stamp;
+  async function createAccount(name) {
+    const response = await request.post('/api/DangKy', { data: {
+      username: name, email: name+'@example.test', password: pass, confirmPassword: pass,
+    } });
+    expect(response.status()).toBe(201);
+    return response.json();
+  }
+  const mine = await createAccount('owner_'+stamp);
+  const peer = await createAccount('peer_'+stamp);
+  const headers = (session) => ({Authorization:'Bearer '+session.token});
+  const myText = 'Post control owner '+stamp;
+  const peerText = 'Post control peer '+stamp;
+  async function create(session, text) {
+    const response=await request.post('/api/baiviet', {
+      headers: headers(session), data: {noiDung:text},
+    });
+    expect(response.status()).toBe(201);
+    return (await response.json()).id;
+  }
+  const peerId=await create(peer,peerText);
+  const mineId=await create(mine,myText);
+  await page.addInitScript(({token,user})=>{
+    localStorage.setItem('zen_token',token);
+    localStorage.setItem('zen_user',JSON.stringify(user));
+  },{token:mine.token,user:mine.user});
+  const minePost=()=>page.locator('.zs-post-card').filter({hasText:myText});
+  const peerPost=()=>page.locator('.zs-post-card').filter({hasText:peerText});
+  const menuFor=(post)=>post.getByRole('button',{name:'Tùy chọn bài viết'});
+  try {
+    await page.goto('/');
+    await expect(minePost()).toBeVisible();
+    await menuFor(minePost()).click();
+    await minePost().getByRole('button',{name:'Chỉnh sửa bài viết'}).click();
+    const dialog=page.getByRole('dialog',{name:'Chỉnh sửa bài viết'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Nội dung bài viết').fill(myText+' edited');
+    await dialog.getByRole('button',{name:'Lưu thay đổi'}).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(minePost()).toContainText('edited');
+
+    await menuFor(minePost()).click();
+    await minePost().getByRole('button',{name:'Ghim trên trang cá nhân'}).click();
+    await expect(minePost()).toContainText('Đã ghim');
+
+    await menuFor(minePost()).click();
+    await minePost().getByRole('button',{name:'Lưu bài viết'}).click();
+    await page.goto('/saved');
+    await expect(minePost()).toBeVisible();
+    await menuFor(minePost()).click();
+    await expect(minePost().getByRole('button',{name:'Bỏ lưu bài viết'})).toBeVisible();
+    await minePost().getByRole('button',{name:'Bỏ lưu bài viết'}).click();
+    await expect(minePost()).toHaveCount(0);
+
+    await page.goto('/');
+    await expect(peerPost()).toBeVisible();
+    await menuFor(peerPost()).click();
+    await peerPost().getByRole('button',{name:'Ẩn khỏi bảng tin của tôi'}).click();
+    await expect(peerPost()).toHaveCount(0);
+    await page.getByRole('button',{name:'Hoàn tác'}).click();
+    await expect(peerPost()).toBeVisible();
+
+    // The author may pin, but another account cannot take over that permission.
+    const forbidden=await request.put('/api/v1/posts/'+mineId+'/pin', {headers:headers(peer)});
+    expect(forbidden.status()).toBe(403);
+    expect(errors).toEqual([]);
+  } finally {
+    await request.delete('/api/baiviet/'+mineId,{headers:headers(mine)});
+    await request.delete('/api/baiviet/'+peerId,{headers:headers(peer)});
+  }
+});

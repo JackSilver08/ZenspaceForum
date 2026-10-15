@@ -210,4 +210,59 @@ api(f"/chat/lichsu/{uid}/1", token=new_account["token"], expected=403)
 
 print("Backend regressions OK: CORS, strict IDs, email/whitespace auth, reactions, batch feed, public profiles, explore, inbox and access control")
 
+
+# Post Control Center: authenticated, per-user state, privacy and permissions.
+control_path = f"/v1/posts/my-state?ids={pid},1"
+api(control_path, expected=401)
+assert api(control_path, token=token)["data"] == {"bookmarked": [], "hidden": []}
+api("/v1/posts/my-state?ids=abc", token=token, expected=400)
+api("/v1/posts/my-state?ids=" + ",".join(str(n) for n in range(1,102)), token=token, expected=400)
+
+# Saved posts are private, stable under duplicate requests, and fully reversible.
+api(f"/v1/posts/{pid}/bookmark", "PUT", token=token)
+api(f"/v1/posts/{pid}/bookmark", "PUT", token=token)
+assert pid in api(control_path, token=token)["data"]["bookmarked"]
+assert pid not in api(control_path, token=new_account["token"])["data"]["bookmarked"]
+saved = api("/v1/bookmarks", token=token)["data"]
+assert any(p["id"] == pid and p["noiDung"] for p in saved), saved
+assert not api("/v1/bookmarks", token=new_account["token"])["data"]
+api("/v1/bookmarks", expected=401)
+api(f"/v1/posts/{pid}/bookmark", "DELETE", token=token)
+assert pid not in api(control_path, token=token)["data"]["bookmarked"]
+
+# Hide only affects this user's feeds. Other users, public posts and direct URLs stay visible.
+api(f"/v1/posts/{1}/hide", "PUT", token=token)
+api(f"/v1/posts/{1}/hide", "PUT", token=token)
+assert 1 in api(control_path, token=token)["data"]["hidden"]
+assert 1 not in [p["id"] for p in api("/v1/feed/public", token=token)["data"]]
+assert 1 in [p["id"] for p in api("/baiviet")["data"]]
+assert api("/baiviet/1")["data"]["id"] == 1
+assert 1 in [p["id"] for p in api("/v1/feed/public", token=new_account["token"])["data"]]
+api("/v1/users/1/follow", "POST", token=token)
+assert 1 not in [p["id"] for p in api("/v1/feed", token=token)["data"]]
+api(f"/v1/posts/1/hide", "DELETE", token=token)
+assert 1 in [p["id"] for p in api("/v1/feed", token=token)["data"]]
+api("/v1/users/1/follow", "DELETE", token=token)
+
+# Only the author may pin; pinning a second post replaces the first atomically.
+api(f"/v1/posts/{pid}/pin", "PUT", token=new_account["token"], expected=403)
+api(f"/v1/posts/{pid}/pin", "PUT", token=token)
+assert api("/baiviet/"+str(pid))["data"]["isPinned"] is True
+assert api("/nguoidung/trangcanhan/"+str(uid))["data"]["baiViets"][0]["id"] == pid
+another = api("/baiviet","POST",{"noiDung":"Second pin integration post"},token,201)["id"]
+api(f"/v1/posts/{another}/pin","PUT",token=token)
+assert api("/baiviet/"+str(pid))["data"]["isPinned"] is False
+assert api("/baiviet/"+str(another))["data"]["isPinned"] is True
+assert api("/nguoidung/trangcanhan/"+str(uid))["data"]["baiViets"][0]["id"] == another
+api(f"/v1/posts/{another}/pin", "DELETE", token=token)
+assert api("/baiviet/"+str(another))["data"]["isPinned"] is False
+api(f"/v1/posts/{another}", "DELETE", token=token)
+
+# Missing posts return a safe 404, not a foreign-key 500.
+api("/v1/posts/987654321/bookmark","PUT",token=token,expected=404)
+api("/v1/posts/987654321/hide","PUT",token=token,expected=404)
+api("/v1/posts/987654321/pin","PUT",token=token,expected=404)
+
+print("Post Control Center regression OK: bookmark, hide, pin, access control, privacy and undo")
+
 print("Smoke OK: Nginx + React + Gin + MySQL + auth + posts + comments + reactions + follows + chat + media")

@@ -32,14 +32,14 @@ func (a *App) profile(c *gin.Context){
     var followers, following int
     if err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE following_id=?",id).Scan(&followers);err!=nil {fail(c,500,"Không tải được người theo dõi");return}
     if err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT COUNT(*) FROM follows WHERE follower_id=?",id).Scan(&following);err!=nil {fail(c,500,"Không tải được dữ liệu đang theo dõi");return}
-    rows,err:=a.DB.QueryContext(c.Request.Context(),"SELECT id,noiDung,COALESCE(mediaUrl,''),ngayTao FROM BaiDang WHERE idTaiKhoan=? ORDER BY ngayTao DESC,id DESC LIMIT 100",id)
+    rows,err:=a.DB.QueryContext(c.Request.Context(),"SELECT id,noiDung,COALESCE(mediaUrl,''),ngayTao,pinnedAt FROM BaiDang WHERE idTaiKhoan=? ORDER BY (pinnedAt IS NOT NULL) DESC,ngayTao DESC,id DESC LIMIT 100",id)
     if err!=nil{fail(c,500,"Lỗi tải trang cá nhân");return}
     defer rows.Close()
     posts:=make([]gin.H,0)
     for rows.Next(){
-        var pid int;var content,media string;var created time.Time
-        if err:=rows.Scan(&pid,&content,&media,&created);err!=nil{fail(c,500,"Lỗi bài viết");return}
-        posts=append(posts,gin.H{"id":pid,"idTaiKhoan":id,"noiDung":content,"mediaUrl":media,"ngayDang":created.Format(time.RFC3339)})
+        var pid int;var content,media string;var created time.Time;var pinned sql.NullTime
+        if err:=rows.Scan(&pid,&content,&media,&created,&pinned);err!=nil{fail(c,500,"Lỗi bài viết");return}
+        posts=append(posts,gin.H{"id":pid,"idTaiKhoan":id,"noiDung":content,"mediaUrl":media,"ngayDang":created.Format(time.RFC3339),"isPinned":pinned.Valid})
     }
     if rows.Err()!=nil{fail(c,500,"Lỗi bài viết");return}
     c.JSON(200,gin.H{"success":true,"data":gin.H{"user":gin.H{"id":id,"tenDangNhap":name,"avatar":avatar,"followers":followers,"following":following},"baiViets":posts}})
