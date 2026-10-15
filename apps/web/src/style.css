@@ -2,6 +2,7 @@
 @import './styles/feed.css';
 @import './styles/chat.css';
 @import './styles/ux-audit.css';
+@import './styles/reaction-state.css';
 
 /* Compatibility styling for account, search, messaging, and post details
    while their layouts migrate from Bootstrap to the Stitch design system. */
