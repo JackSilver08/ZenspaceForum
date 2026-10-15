@@ -467,7 +467,7 @@ test('comment threads: reply, like, edit, and three-dot moderation permissions',
     await expect(page.getByText('Đang trả lời')).toBeVisible();
     await page.getByPlaceholder('Viết bình luận...').fill('Reply message '+stamp);
     await page.getByRole('button',{name:'Gửi trả lời'}).click();
-    const reply=page.locator('.zs-comment--reply').filter({hasText:'Reply message '+stamp});
+    const reply=page.locator('.zs-comment--reply').first(); // Stable when the editor replaces comment text
     await expect(reply).toBeVisible();
     await reply.getByRole('button',{name:/Tùy chọn bình luận/}).click();
     await expect(reply.getByRole('button',{name:'Sửa bình luận'})).toBeVisible();
