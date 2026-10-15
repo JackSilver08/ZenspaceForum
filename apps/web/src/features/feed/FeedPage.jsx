@@ -42,7 +42,6 @@ function Media({ src, title = '' }) {
 
 function Composer({ me, onPosted }) {
   const [expanded, setExpanded] = useState(false);
-  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
@@ -50,8 +49,8 @@ function Composer({ me, onPosted }) {
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const picker = useRef(null);
-  const titleRef = useRef(null);
-  const dirty = Boolean(title.trim() || body.trim() || file);
+  const bodyRef = useRef(null);
+  const dirty = Boolean(body.trim() || file);
 
   useEffect(() => {
     if (!file || !file.type.startsWith('image/')) { setPreview(''); return; }
@@ -63,7 +62,7 @@ function Composer({ me, onPosted }) {
   useEffect(() => {
     function openComposer() {
       setExpanded(true);
-      setTimeout(() => titleRef.current?.focus(), 0);
+      setTimeout(() => bodyRef.current?.focus(), 0);
     }
     window.addEventListener('zenspace:compose', openComposer);
     if (window.location.hash === '#compose') openComposer();
@@ -95,7 +94,7 @@ function Composer({ me, onPosted }) {
 
   function reset() {
     if (dirty && !window.confirm('Bỏ nội dung bài viết chưa lưu?')) return;
-    setTitle(''); setBody(''); setFile(null); setPreview('');
+    setBody(''); setFile(null); setPreview('');
     setError(''); setExpanded(false);
     if (picker.current) picker.current.value = '';
   }
@@ -117,15 +116,14 @@ function Composer({ me, onPosted }) {
 
   async function publish(event) {
     event.preventDefault();
-    if (!title.trim() || !body.trim() || submitting) return;
+    if (!body.trim() || submitting) return;
     setSubmitting(true); setError(''); setNotice('');
     try {
       const data = new FormData();
-      data.append('tieuDe', title.trim());
       data.append('noiDung', body.trim());
       if (file) data.append('file', file);
       await api('/baiviet', {method:'POST', body:data, auth:true});
-      setTitle(''); setBody(''); setFile(null); setExpanded(false);
+      setBody(''); setFile(null); setExpanded(false);
       if (picker.current) picker.current.value = '';
       setNotice('Đã đăng bài thành công.');
       onPosted();
@@ -141,21 +139,18 @@ function Composer({ me, onPosted }) {
   return <section className={'zs-composer' + (expanded ? ' is-expanded' : '')} id="compose" aria-label="Tạo bài viết">
     <div className="zs-composer-top">
       <Avatar name={me.tenDangNhap} avatar={me.avatar}/>
-      <button type="button" className="zs-composer-trigger" onClick={() => {setExpanded(true);titleRef.current?.focus();}}
+      <button type="button" className="zs-composer-trigger" onClick={() => {setExpanded(true);bodyRef.current?.focus();}}
         aria-expanded={expanded} aria-controls="zs-composer-fields">
         {expanded ? 'Tạo bài viết' : 'Bạn đang nghĩ gì?'}
         {!expanded && <PenLine size={18} aria-hidden="true"/>}
       </button>
     </div>
     {expanded && <form id="zs-composer-fields" className="zs-composer-form" onSubmit={publish}>
-      <label htmlFor="zs-post-title">Tiêu đề</label>
-      <input id="zs-post-title" ref={titleRef} className="zs-input zs-title-input"
-        value={title} onChange={e => setTitle(e.target.value)} maxLength={255}
-        placeholder="Tiêu đề bài viết" required/>
-      <label htmlFor="zs-post-body">Nội dung</label>
-      <textarea id="zs-post-body" className="zs-input zs-body-input" value={body}
-        onChange={e=>setBody(e.target.value)} rows={3}
-        placeholder="Chia sẻ câu chuyện của bạn..." required/>
+      <label htmlFor="zs-post-body">Nội dung bài viết</label>
+      <textarea id="zs-post-body" ref={bodyRef} className="zs-input zs-body-input"
+        value={body} onChange={e=>setBody(e.target.value)} rows={4} maxLength={10000}
+        placeholder="Bạn đang nghĩ gì? Chia sẻ điều gì đó với cộng đồng..." required/>
+      <div className="zs-composer-counter" aria-live="polite">{body.length.toLocaleString('vi-VN')} / 10.000 ký tự</div>
       {file && <div className="zs-composer-attachment">
         {preview && <img src={preview} alt="Xem trước ảnh đính kèm"/>}
         <span>{file.name}</span>
@@ -169,7 +164,7 @@ function Composer({ me, onPosted }) {
         <div className="zs-composer-buttons">
           <button type="button" className="zs-text-button" onClick={reset} disabled={submitting}>Hủy</button>
           <button className="zs-cta zs-cta--publish" type="submit"
-            disabled={submitting || !title.trim() || !body.trim()}>
+            disabled={submitting || !body.trim()}>
             <Send size={16}/> {submitting ? 'Đang đăng...' : 'Đăng bài'}
           </button>
         </div>
@@ -268,10 +263,9 @@ function PostCard({ post, me, onDelete, selectedReaction, onReactionChange, reac
         )}
       </div>
       <div className="zs-post-content">
-        <Link to={`/posts/${id}`} className="zs-post-title">{post.tieuDe}</Link>
-        <p>{post.noiDung}</p>
+        <Link to={`/posts/${id}`} className="zs-post-body-link">{post.noiDung}</Link>
       </div>
-      <Media src={post.mediaUrl} title={post.tieuDe} />
+      <Media src={post.mediaUrl} />
       {count > 0 && <div className="zs-post-engagement">{count} lượt cảm xúc</div>}
       <div className="zs-post-actions">
         {me ? (

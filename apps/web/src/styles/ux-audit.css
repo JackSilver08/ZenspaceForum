@@ -115,6 +115,16 @@ body { background:var(--zs-bg); color:var(--zs-text); font-size:14px; line-heigh
 .zs-post-content{padding:10px 0 8px}
 .zs-post-title {font:600 18px/1.4 var(--zs-display);letter-spacing:-.025em;color:#222235;}
 .zs-post-content p {font-size:13.5px;line-height:1.7;margin:5px 0 4px;color:#41475b;}
+.zs-post-body-link {
+  display:block;color:#303346;font-size:14px;line-height:1.78;
+  font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;
+  margin:0;padding:1px 0;min-height:20px;
+}
+.zs-post-body-link:hover {color:#303346;text-decoration:none}
+.zs-legacy-post-content-link {color:#303346;white-space:pre-wrap;overflow-wrap:anywhere}
+.zs-legacy-post-content-link:hover {color:#4b3a82}
+.zs-composer-counter {text-align:right;font-size:11px;color:#687184;margin-top:3px}
+.zs-composer.is-expanded .zs-body-input {min-height:124px;resize:vertical}
 .zs-post-tags {margin:4px 0 8px;gap:5px}
 .zs-post-tags span {font-size:10px}
 .zs-post-media{margin:8px 0 10px}

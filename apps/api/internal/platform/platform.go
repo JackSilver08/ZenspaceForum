@@ -52,5 +52,6 @@ func Migrate(db *sql.DB) error {
         "PRIMARY KEY (follower_id, following_id), INDEX idx_follows_following (following_id)," +
         "FOREIGN KEY (follower_id) REFERENCES TaiKhoan(id) ON DELETE CASCADE," +
         "FOREIGN KEY (following_id) REFERENCES TaiKhoan(id) ON DELETE CASCADE)")
-    return err
+    if err != nil { return err }
+    return MigrateContentOnlyPosts(db)
 }

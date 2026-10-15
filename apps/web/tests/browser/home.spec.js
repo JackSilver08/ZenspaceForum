@@ -32,7 +32,10 @@ test('authenticated home and following feed render; compose expands', async ({ p
   await page.locator('form.auth').getByRole('button', { name: 'Đăng nhập' }).click();
   await expect(page.getByRole('heading', { name: 'Bảng tin', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Bạn đang nghĩ gì?' }).click();
-  await expect(page.getByLabel('Tiêu đề', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Nội dung bài viết')).toBeVisible();
+  await expect(page.getByLabel('Tiêu đề')).toHaveCount(0);
+  await page.getByLabel('Nội dung bài viết').fill('A Facebook-style status without a title');
+  await expect(page.getByRole('button', { name: 'Đăng bài' })).toBeEnabled();
   await page.goto('/following');
   await expect(page.getByRole('heading', { name: 'Đang theo dõi', level: 1 })).toBeVisible();
   expect(errors).toEqual([]);
@@ -60,7 +63,7 @@ test('selected reaction appears, survives reload, switches and toggles off', asy
   expect(signup.status()).toBe(201);
   const account = await signup.json();
   const token = account.token;
-  const title = 'Reaction UI regression ' + suffix;
+  const message = 'Reaction UI regression ' + suffix;
   await page.addInitScript(({ token, user }) => {
     localStorage.setItem('zen_token', token);
     localStorage.setItem('zen_user', JSON.stringify(user));
@@ -68,12 +71,12 @@ test('selected reaction appears, survives reload, switches and toggles off', asy
 
   const create = await request.post('/api/baiviet', {
     headers: { Authorization: 'Bearer ' + token },
-    data: { tieuDe: title, noiDung: 'Temporary post for reaction E2E test' },
+    data: { noiDung: message + ' — temporary post for reaction E2E test' },
   });
   expect(create.status()).toBe(201);
   const created = await create.json();
   const postId = created.id;
-  const post = () => page.locator('.zs-post-card').filter({ hasText: title });
+  const post = () => page.locator('.zs-post-card').filter({ hasText: message });
   const trigger = () => post().locator('.zs-reaction-trigger');
 
   async function choose(label) {
