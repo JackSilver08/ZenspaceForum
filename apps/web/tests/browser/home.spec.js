@@ -229,7 +229,7 @@ test('Sprint 2: report, block, unblock, comment moderation and admin review', as
     await post().getByRole('button',{name:'Chặn tác giả'}).click();
     await expect(post()).toHaveCount(0);
     await page.goto('/blocked');
-    await expect(page.getByText(owner.user.tenDangNhap)).toBeVisible();
+    await expect(page.locator('.zs-safety-item').getByText(owner.user.tenDangNhap)).toBeVisible();
     await page.getByRole('button',{name:'Bỏ chặn'}).click();
     await page.goto('/');
     await expect(post()).toBeVisible();
