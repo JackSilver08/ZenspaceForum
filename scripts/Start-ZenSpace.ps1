@@ -183,6 +183,7 @@ try {
     Write-Host " MySQL:   127.0.0.1:$mysqlPort"
     Write-Host ''
     Write-Host '[INFO] Building and starting MySQL, Redis, Go API, and Nginx...'
+    Write-Host '[INFO] First backend compile may take several minutes; Go module and compiler caches speed up later builds.'
 
     & docker compose up --build -d --remove-orphans
     if ($LASTEXITCODE -ne 0) {
