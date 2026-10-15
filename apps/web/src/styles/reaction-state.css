@@ -1,0 +1,13 @@
+/* Current user's reaction: visible, persistent visual feedback. */
+.zs-reaction-trigger.is-reacted {
+  color: #4b3a82;
+  background: #f1ebf8;
+  font-weight: 700;
+}
+.zs-reaction-trigger.is-reacted:hover { background: #e8def4; }
+.zs-selected-emoji { font-size: 19px; line-height: 1; }
+.zs-reaction-menu button.is-selected {
+  background: #eee6f7;
+  box-shadow: inset 0 0 0 1px #c4b4dd;
+}
+.zs-reaction-menu button[aria-pressed="true"] small { font-weight: 700; color: #43316d; }

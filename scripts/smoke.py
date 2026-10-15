@@ -144,6 +144,22 @@ api("/camxuc/" + str(pid), "DELETE", token=token)
 assert api("/camxuc/thongke/" + str(pid))["love"] == 0
 api("/camxuc/" + str(pid), "POST", {"loaiCamXuc":"wow"}, token)
 
+# Personal reaction state is private, persistent, and fetched in one batched request.
+selected_path = "/camxuc/cua-toi?ids=" + str(pid)
+api(selected_path, expected=401)
+assert api(selected_path, token=token)["data"] == {str(pid): "wow"}
+assert api(selected_path, token=new_account["token"])["data"] == {}, "Private reactions leaked"
+api("/camxuc/cua-toi?ids=1,bad", token=token, expected=400)
+api("/camxuc/cua-toi?ids=", token=token, expected=400)
+api("/camxuc/cua-toi?ids=" + ",".join(str(n) for n in range(1, 102)), token=token, expected=400)
+api("/camxuc/" + str(pid), "POST", {"loaiCamXuc":"love"}, token)
+assert api(selected_path, token=token)["data"] == {str(pid): "love"}, "Switching reaction did not persist"
+undo = api("/camxuc/" + str(pid), "POST", {"loaiCamXuc":"love"}, token)
+assert undo["action"] == "deleted"
+assert api(selected_path, token=token)["data"] == {}, "Toggling off did not persist"
+api("/camxuc/" + str(pid), "POST", {"loaiCamXuc":"wow"}, token)
+assert api(selected_path, token=token)["data"] == {str(pid): "wow"}
+
 # IDs: both numeric and string positive integers, reject decimal or self.
 assert api("/binhluan", "POST", {"idBaiDang":str(pid),"noiDung":"String ID"}, token, 201)["success"]
 api("/binhluan", "POST", {"idBaiDang":pid+0.5,"noiDung":"Decimal ID"}, token, 400)

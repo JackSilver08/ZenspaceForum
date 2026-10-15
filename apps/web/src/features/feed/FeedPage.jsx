@@ -183,7 +183,7 @@ function Composer({ me, onPosted }) {
   </section>;
 }
 
-function PostCard({ post, me, onDelete }) {
+function PostCard({ post, me, onDelete, selectedReaction, onReactionChange, reactionLoading }) {
   const [stats, setStats] = useState(post.reactions || null);
   const [menu, setMenu] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
@@ -193,6 +193,7 @@ function PostCard({ post, me, onDelete }) {
   const id = Number(post.id);
   const author = post.tenDangNhap || 'Thành viên ZenSpace';
   const owned = Boolean(me && (Number(me.id) === Number(post.idTaiKhoan) || me.phanQuyen === 'admin'));
+  const activeReaction = reactionOptions.find(option => option.key === selectedReaction) || null;
 
   useEffect(() => {
     if (post.reactions) { setStats(post.reactions); return; }
@@ -206,8 +207,14 @@ function PostCard({ post, me, onDelete }) {
     setFeedback('');
     setReactionsOpen(false);
     try {
-      await api(`/camxuc/${id}`, { method: 'POST', auth: true, body: { loaiCamXuc: kind } });
-      setStats(await api(`/camxuc/thongke/${id}`));
+      const result = await api(`/camxuc/${id}`, { method: 'POST', auth: true, body: { loaiCamXuc: kind } });
+      // The mutation response is authoritative; counts alone cannot identify the user's reaction.
+      onReactionChange(id, result.action === 'deleted' ? null : kind);
+      try {
+        setStats(await api(`/camxuc/thongke/${id}`));
+      } catch {
+        setFeedback('Đã lưu cảm xúc, nhưng chưa cập nhật được lượt tương tác.');
+      }
     } catch (err) {
       setFeedback(err.message);
     } finally {
@@ -269,10 +276,26 @@ function PostCard({ post, me, onDelete }) {
       <div className="zs-post-actions">
         {me ? (
           <div className="zs-reaction-picker">
-            <button className="zs-post-action" type="button" disabled={busy} aria-expanded={reactionsOpen} onClick={() => setReactionsOpen(!reactionsOpen)}><Heart size={18}/> Cảm xúc <ChevronDown size={13}/></button>
+            <button
+              className={'zs-post-action zs-reaction-trigger' + (activeReaction ? ' is-reacted' : '')}
+              type="button"
+              disabled={busy || reactionLoading}
+              aria-expanded={reactionsOpen}
+              aria-label={activeReaction ? `Cảm xúc của bạn: ${activeReaction.label}. Chọn để đổi hoặc hủy` : 'Chọn cảm xúc'}
+              onClick={() => setReactionsOpen(!reactionsOpen)}
+            >
+              {activeReaction ? <span className="zs-selected-emoji" aria-hidden="true">{activeReaction.symbol}</span> : <Heart size={18}/>}
+              <span>{activeReaction ? activeReaction.label : 'Cảm xúc'}</span>
+              <ChevronDown size={13}/>
+            </button>
             {reactionsOpen && (
               <div className="zs-reaction-menu" role="group" aria-label="Chọn cảm xúc">
-                {reactionOptions.map(r => <button key={r.key} title={r.label} type="button" onClick={() => react(r.key)}><span>{r.symbol}</span><small>{r.label}</small></button>)}
+                {reactionOptions.map(r => <button key={r.key} title={r.label} type="button" disabled={busy}
+                  aria-pressed={selectedReaction === r.key}
+                  className={selectedReaction === r.key ? 'is-selected' : ''}
+                  onClick={() => react(r.key)}>
+                  <span>{r.symbol}</span><small>{r.label}</small>
+                </button>)}
               </div>
             )}
           </div>
@@ -297,6 +320,9 @@ export default function FeedPage({me, feedMode = 'community'}) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [myReactions, setMyReactions] = useState({});
+  const [reactionLoading, setReactionLoading] = useState(Boolean(me));
+  const [reactionError, setReactionError] = useState('');
 
   useEffect(() => {
     let live = true;
@@ -308,6 +334,40 @@ export default function FeedPage({me, feedMode = 'community'}) {
     return ()=>{live=false;};
   }, [following,refresh]);
 
+  // One authenticated query per feed page, rather than one query for every card.
+  useEffect(() => {
+    let live = true;
+    if (!me || posts.length === 0 || loading) {
+      setMyReactions({});
+      setReactionLoading(false);
+      setReactionError('');
+      return () => { live = false; };
+    }
+    setReactionLoading(true);
+    setReactionError('');
+    const ids = posts.map(post => post.id).join(',');
+    api('/camxuc/cua-toi?ids=' + encodeURIComponent(ids), { auth: true })
+      .then(result => {
+        if (live) setMyReactions(result.data && typeof result.data === 'object' ? result.data : {});
+      })
+      .catch(err => {
+        if (live) {
+          setMyReactions({});
+          setReactionError('Không tải được cảm xúc đã chọn: ' + err.message);
+        }
+      })
+      .finally(() => { if (live) setReactionLoading(false); });
+    return () => { live = false; };
+  }, [me?.id, posts, loading]);
+
+  const onReactionChange = (postId, kind) => {
+    setMyReactions(previous => {
+      const next = { ...previous };
+      if (kind) next[String(postId)] = kind;
+      else delete next[String(postId)];
+      return next;
+    });
+  };
   const reload = () => setRefresh(n=>n+1);
   return <div className="zs-feed">
     <header className="zs-feed-heading">
@@ -328,11 +388,16 @@ export default function FeedPage({me, feedMode = 'community'}) {
         <RefreshCw size={17}/>
       </button>
     </div>
+    {reactionError && <p className="zs-error" role="alert">{reactionError}</p>}
     {loading ? <LoadingFeed/> : error ? <div className="zs-feed-empty">
       <h3>Không thể tải bài viết</h3><p role="alert">{error}</p>
       <button type="button" className="zs-outline-button" onClick={reload}>Thử lại <RefreshCw size={15}/></button>
     </div> : posts.length ? <div className="zs-post-list">
-      {posts.map(post=><PostCard key={post.id} post={post} me={me} onDelete={reload}/>)}
+      {posts.map(post=><PostCard key={post.id} post={post} me={me}
+        selectedReaction={myReactions[String(post.id)] || null}
+        reactionLoading={reactionLoading}
+        onReactionChange={onReactionChange}
+        onDelete={reload}/>)}
     </div> : <div className="zs-feed-empty">
       <h3>Chưa có bài viết</h3>
       <p>{following ? 'Theo dõi thêm thành viên để đọc những câu chuyện của họ.' : 'Cộng đồng đang chờ bài viết đầu tiên.'}</p>

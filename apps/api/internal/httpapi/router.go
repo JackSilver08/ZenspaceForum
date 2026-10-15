@@ -135,6 +135,7 @@ func (a *App) Router() *gin.Engine {
     secured.POST("/binhluan", a.addComment)
     secured.DELETE("/binhluan/:id", a.deleteComment)
     secured.DELETE("/binhluan/xoa/:id", a.deleteComment)
+    secured.GET("/camxuc/cua-toi", a.myReactions)
     secured.POST("/camxuc/:id", a.react)
     secured.DELETE("/camxuc/:id", a.unreact)
     secured.POST("/nguoidung/:id/avatar", a.avatar)

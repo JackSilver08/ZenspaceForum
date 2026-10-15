@@ -48,3 +48,67 @@ test('mobile layout still renders a feed and bottom navigation', async ({ page }
   expect(bodyWidth).toBeLessThanOrEqual(390);
   expect(errors).toEqual([]);
 });
+
+test('selected reaction appears, survives reload, switches and toggles off', async ({ page, request }) => {
+  const errors = collectErrors(page);
+  const suffix = Date.now().toString(36);
+  const password = 'TestOnly_Reaction_123!';
+  const username = 'reaction_' + suffix;
+  const signup = await request.post('/api/DangKy', { data: {
+    username, email: username + '@example.test', password, confirmPassword: password,
+  } });
+  expect(signup.status()).toBe(201);
+  const account = await signup.json();
+  const token = account.token;
+  const title = 'Reaction UI regression ' + suffix;
+  await page.addInitScript(({ token, user }) => {
+    localStorage.setItem('zen_token', token);
+    localStorage.setItem('zen_user', JSON.stringify(user));
+  }, { token, user: account.user });
+
+  const create = await request.post('/api/baiviet', {
+    headers: { Authorization: 'Bearer ' + token },
+    data: { tieuDe: title, noiDung: 'Temporary post for reaction E2E test' },
+  });
+  expect(create.status()).toBe(201);
+  const created = await create.json();
+  const postId = created.id;
+  const post = () => page.locator('.zs-post-card').filter({ hasText: title });
+  const trigger = () => post().locator('.zs-reaction-trigger');
+
+  async function choose(label) {
+    await trigger().click();
+    await post().getByRole('group', { name: 'Chọn cảm xúc' })
+      .getByRole('button', { name: new RegExp(label) }).click();
+  }
+
+  try {
+    await page.goto('/');
+    await expect(post()).toBeVisible();
+    await choose('Bất ngờ');
+    await expect(trigger()).toContainText('Bất ngờ');
+    await expect(trigger()).toHaveClass(/is-reacted/);
+    await page.reload();
+    await expect(trigger()).toContainText('Bất ngờ');
+    await choose('Yêu thích');
+    await expect(trigger()).toContainText('Yêu thích');
+    await page.reload();
+    await expect(trigger()).toContainText('Yêu thích');
+    await choose('Yêu thích');
+    await expect(trigger()).toContainText('Cảm xúc');
+    await expect(trigger()).not.toHaveClass(/is-reacted/);
+    await page.reload();
+    await expect(trigger()).toContainText('Cảm xúc');
+
+    const mine = await request.get('/api/camxuc/cua-toi?ids=' + postId, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    expect(mine.status()).toBe(200);
+    expect((await mine.json()).data).toEqual({});
+    expect(errors).toEqual([]);
+  } finally {
+    await request.delete('/api/baiviet/' + postId, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+  }
+});
