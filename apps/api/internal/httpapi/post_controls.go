@@ -86,14 +86,17 @@ func (a *App) myBookmarks(c *gin.Context) {
         if n<limit {limit=n}
     }
     rows,err:=a.DB.QueryContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt "+
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled "+
         "FROM post_bookmarks bm JOIN BaiDang b ON b.id=bm.post_id JOIN TaiKhoan t ON t.id=b.idTaiKhoan "+
-        "WHERE bm.user_id=? ORDER BY bm.created_at DESC,b.id DESC LIMIT ?",userID(c),limit)
+        "WHERE bm.user_id=? AND NOT EXISTS (SELECT 1 FROM user_blocks bl WHERE "+
+        "(bl.blocker_id=? AND bl.blocked_id=b.idTaiKhoan) OR "+
+        "(bl.blocked_id=? AND bl.blocker_id=b.idTaiKhoan)) "+
+        "ORDER BY bm.created_at DESC,b.id DESC LIMIT ?",userID(c),userID(c),userID(c),limit)
     if err!=nil{fail(c,500,"Không tải được bài đã lưu");return}
     defer rows.Close()
     items:=make([]post,0)
     for rows.Next(){var p post
-        if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt);err!=nil{fail(c,500,"Lỗi dữ liệu bài đã lưu");return}
+        if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled);err!=nil{fail(c,500,"Lỗi dữ liệu bài đã lưu");return}
         items=append(items,p)
     }
     if rows.Err()!=nil {fail(c,500,"Lỗi dữ liệu bài đã lưu");return}
@@ -148,16 +151,17 @@ func (a *App) personalizedPublicFeed(c *gin.Context) {
     if err!=nil||limit<1{limit=30}
     if limit>100{limit=100}
     rows,err:=a.DB.QueryContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt "+
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled "+
         "FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan "+
         "WHERE NOT EXISTS (SELECT 1 FROM post_hides h WHERE h.post_id=b.id AND h.user_id=?) "+
-        "ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?",userID(c),limit)
+        "AND NOT EXISTS (SELECT 1 FROM user_blocks bl WHERE (bl.blocker_id=? AND bl.blocked_id=b.idTaiKhoan) OR (bl.blocked_id=? AND bl.blocker_id=b.idTaiKhoan)) "+
+        "ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?",userID(c),userID(c),userID(c),limit)
     if err!=nil{fail(c,500,"Không tải được bảng tin");return}
     defer rows.Close()
     posts:=make([]post,0)
     for rows.Next(){
         var p post
-        if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt);err!=nil{fail(c,500,"Lỗi dữ liệu bảng tin");return}
+        if err:=rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled);err!=nil{fail(c,500,"Lỗi dữ liệu bảng tin");return}
         posts=append(posts,p)
     }
     if rows.Err()!=nil{fail(c,500,"Lỗi đọc bảng tin");return}

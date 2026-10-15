@@ -1,0 +1,24 @@
+
+/* Sprint 2: report dialog and safety pages, matching Cosmic Atelier Light. */
+.zs-edit-dialog .zs-dialog-help{font-size:12px;color:#5d6173;margin-bottom:16px}
+.zs-edit-dialog select{display:block;width:100%;padding:11px;margin:0 0 16px;border:1px solid #d7cfe3;background:#fff;border-radius:9px;color:#252539;}
+.zs-edit-dialog select:focus{outline:2px solid #7861a3}
+.zs-control-success{display:block;font-size:11px;color:#42634e;margin-top:5px}
+.zs-safety-page{background:#fff;border:1px solid var(--zs-border);border-radius:16px;padding:27px;min-height:260px;}
+.zs-safety-page h1{display:flex;align-items:center;gap:10px;font:700 29px var(--zs-display);color:#23233e;margin:10px 0}
+.zs-safety-page>p:not(.zs-feed-eyebrow){font-size:13px;line-height:1.65;color:#64687b}
+.zs-safety-page>label{display:block;font-weight:700;font-size:12px;margin:14px 0 6px}
+.zs-safety-page>select{min-width:170px;max-width:100%;border:1px solid #ded7e7;background:#fff;border-radius:9px;padding:9px;}
+.zs-safety-list{display:grid;gap:12px;margin-top:22px}
+.zs-safety-item,.zs-report-card{border:1px solid #e9e4ee;border-radius:12px;padding:17px;background:#fcfbff}
+.zs-safety-item,.zs-report-head,.zs-report-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.zs-safety-item>span{font-weight:700}
+.zs-safety-item button,.zs-report-actions button{border:1px solid #cdc4df;background:#fff;color:#463675;border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:7px}
+.zs-report-card p{font-size:12px;color:#50566b;line-height:1.65;margin:12px 0}
+.zs-report-card .zs-report-snapshot{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;border:1px solid #e5e0e9;border-radius:8px;padding:12px;max-height:230px;overflow:auto}
+.zs-report-head strong{color:#3b315f;font-size:13px}
+.zs-report-head span{font-size:11px;color:#716381}
+.zs-report-card a{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4f3d82}
+.zs-report-actions{justify-content:flex-end;margin-top:14px}
+.zs-report-missing{font-style:italic}
+@media(max-width:640px){.zs-safety-page{padding:17px}.zs-safety-page h1{font-size:24px}}
