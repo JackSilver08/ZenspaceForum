@@ -64,9 +64,19 @@ assert logged["success"] and logged["user"]["id"] == uid
 old = api("/DangNhap", "POST", {"TenDangNhap": "admin", "MatKhau": "ZenSpaceDemo123!"})
 assert old["success"]
 
-created = api("/baiviet", "POST", {"tieuDe": "Smoke test", "noiDung": "Docker + MySQL integration"}, token, 201)
+created = api("/baiviet", "POST", {"noiDung": "Docker + MySQL integration"}, token, 201)
 pid = int(created["id"])
-assert api("/baiviet/" + str(pid))["data"]["tieuDe"] == "Smoke test"
+post_from_api = api("/baiviet/" + str(pid))["data"]
+assert post_from_api["noiDung"] == "Docker + MySQL integration"
+assert "tieuDe" not in post_from_api
+assert "tieuDe" not in posts["data"][0], "Public feed leaked removed title field"
+assert "tieuDe" not in api("/nguoidung/trangcanhan/" + str(uid))["data"]["baiViets"][0]
+api("/baiviet/" + str(pid), "PUT", {"noiDung": "Updated without any post title"}, token)
+assert api("/baiviet/" + str(pid))["data"]["noiDung"] == "Updated without any post title"
+api("/baiviet", "POST", {"noiDung": "  "}, token, 400)
+api("/baiviet", "POST", {}, token, 400)
+api("/baiviet", "POST", {"noiDung": "x" * 10001}, token, 400)
+api("/baiviet/" + str(pid), "PUT", {"noiDung": " "}, token, 400)
 comment = api("/binhluan", "POST", {"idBaiDang": pid, "noiDung": "Comment smoke"}, token, 201)
 assert comment["success"]
 assert len(api("/binhluan/" + str(pid))) == 1
@@ -83,7 +93,7 @@ assert len(api(f"/chat/lichsu/{uid}/1", token=token)["tinNhan"]) == 1
 assert api(f"/nguoidung/trangcanhan/{uid}")["success"]
 
 # A normal user must not be able to update another person's seeded post.
-api("/baiviet/1", "PUT", {"tieuDe": "No", "noiDung": "No"}, token, 403)
+api("/baiviet/1", "PUT", {"noiDung": "No"}, token, 403)
 api("/baiviet/1", "DELETE", token=token, expected=403)
 api("/v1/feed", expected=401)
 
@@ -91,7 +101,6 @@ api("/v1/feed", expected=401)
 gif = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
 boundary = "zenspace-ci-boundary"
 parts = [
-    f"--{boundary}\r\nContent-Disposition: form-data; name=\"tieuDe\"\r\n\r\nImage smoke\r\n".encode(),
     f"--{boundary}\r\nContent-Disposition: form-data; name=\"noiDung\"\r\n\r\nImage upload test\r\n".encode(),
     f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"pixel.gif\"\r\nContent-Type: image/gif\r\n\r\n".encode() + gif + b"\r\n",
     f"--{boundary}--\r\n".encode(),

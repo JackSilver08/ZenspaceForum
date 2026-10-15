@@ -28,7 +28,7 @@ assert "zenspace:compose" in app and "zenspace:compose" in feed
 assert "beforeunload" in feed and "guardNavigation" in feed, "Guard user drafts on reload and in-app navigation"
 assert "window.confirm" in feed, "Confirm when abandoning a draft"
 assert 'form.append(' not in feed, "Keep the FormData integration contract updated"
-assert "data.append('tieuDe'" in feed and "data.append('noiDung'" in feed
+assert "data.append('noiDung'" in feed and "data.append('tieuDe'" not in feed
 
 # Minimal feed hierarchy: no misleading privacy metadata, fake stats or duplicate title links.
 assert "Công khai" not in feed, "Privacy status is not implemented by the API"
