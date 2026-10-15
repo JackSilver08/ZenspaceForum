@@ -8,76 +8,13 @@ import AppShell from './components/layout/AppShell.jsx';
 import { Avatar } from './components/layout/AppShell.jsx';
 import FeedPage, { PostCard } from './features/feed/FeedPage.jsx';
 import MessagesPage from './features/chat/MessagesPage.jsx';
-import PostActionsMenu from './features/feed/PostActionsMenu.jsx';
-import { Pin, UserPlus, MessageCircle, Layers, Images, Orbit, Search, ArrowRight } from 'lucide-react';
+import { UserPlus, MessageCircle, Layers, Images, Orbit, Search, ArrowRight } from 'lucide-react';
 import BlockedUsersPage from './features/safety/BlockedUsersPage.jsx';
 import ModerationPage from './features/safety/ModerationPage.jsx';
 import ManagedPostsPage from './features/feed/ManagedPostsPage.jsx';
-import PostMedia from './features/feed/PostMedia.jsx';
+import PostDetailPage from './features/comments/PostDetailPage.jsx';
 function useApi(url,version){const[data,setData]=useState(null),[error,setError]=useState('');useEffect(()=>{if(!url)return;let live=true;api(url, getToken() ? {auth:true}:undefined).then(d=>{if(live){setData(d);setError('')}}).catch(e=>live&&setError(e.message));return()=>{live=false}},[url,version]);return{data,error}}
 function Auth({onAuth}){const[register,setRegister]=useState(false),[user,setUser]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[err,setErr]=useState('');const nav=useNavigate();async function submit(e){e.preventDefault();try{const d=await api(register?'/DangKy':'/DangNhap',{method:'POST',body:register?{username:user,email,password,confirmPassword}:{TenDangNhap:user,MatKhau:password}});saveSession(d);onAuth(d.user);nav('/')}catch(e){setErr(e.message)}}return <form className="card p-4 shadow-sm auth mx-auto" onSubmit={submit}><h2 className="fw-bold">ZenSpace</h2><p className="text-muted">{register?'Tạo tài khoản':'Đăng nhập'}</p>{err&&<div className="alert alert-danger">{err}</div>}<input className="form-control mb-2" placeholder="Tên đăng nhập" value={user} onChange={e=>setUser(e.target.value)} required/>{register&&<input className="form-control mb-2" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>}<input className="form-control mb-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} required/>{register&&<input className="form-control mb-2" type="password" placeholder="Xác nhận mật khẩu" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required/>}<button className="btn btn-primary">{register?'Đăng ký':'Đăng nhập'}</button><button className="btn btn-link" type="button" onClick={()=>setRegister(!register)}>{register?'Đã có tài khoản?':'Chưa có tài khoản?'}</button></form>}
-function Post({p,me,reload,onDeleted}) {
-  const [stats,setStats]=useState(p.reactions||null),[err,setErr]=useState('');
-  useEffect(()=>{if(p.reactions){setStats(p.reactions);return;}api('/camxuc/thongke/'+p.id).then(setStats).catch(()=>{})},[p.id,p.reactions]);
-  async function react(){
-    try{await api('/camxuc/'+p.id,{auth:true,method:'POST',body:{loaiCamXuc:'like'}});setStats(await api('/camxuc/thongke/'+p.id))}
-    catch(e){setErr(e.message)}
-  }
-  return <article className="card post p-3 mb-3">
-    <div className="d-flex justify-content-between align-items-start">
-      <div><Link className="fw-bold" to={'/users/'+p.idTaiKhoan}>{p.tenDangNhap||'Thành viên'}</Link>
-        <small className="text-muted d-block">{new Date(p.ngayDang).toLocaleString('vi-VN')}</small>
-        {p.isPinned && <span className="zs-pinned-indicator"><Pin size={13}/> Đã ghim</span>}
-      </div>
-      <PostActionsMenu post={p} me={me} onChanged={reload} onDeleted={onDeleted || reload}/>
-    </div>
-    <p className="post-text mt-3"><Link className="zs-legacy-post-content-link" to={'/posts/'+p.id}>{p.noiDung}</Link></p>
-    {p.mediaUrl&&<PostMedia src={p.mediaUrl} className="zs-post-media zs-post-media--profile"/>}
-    <div className="d-flex gap-2 mt-3"><Link className="btn btn-light btn-sm" to={'/posts/'+p.id}>Bình luận</Link>
-      {me&&<button className="btn btn-outline-primary btn-sm" onClick={react}>♥ Like {stats?.like||0}</button>}
-    </div>{err&&<p className="text-danger">{err}</p>}
-  </article>;
-}
-function Detail({me}){
-  const {id}=useParams(),nav=useNavigate();
-  const [tick,setTick]=useState(0),[text,setText]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
-  const {data, error:postError}=useApi('/baiviet/'+id,tick);
-  const {data:comments}=useApi('/binhluan/'+id,tick);
-  const post=data?.data;
-  async function send(e){
-    e.preventDefault();setError('');setBusy(true);
-    try{await api('/binhluan',{method:'POST',auth:true,body:{idBaiDang:Number(id),noiDung:text}});
-      setText('');setTick(n=>n+1)}catch(e){setError(e.message)}finally{setBusy(false)}
-  }
-  async function removeComment(cid){
-    if(!window.confirm('Xóa bình luận này?'))return;
-    try{await api('/binhluan/'+cid,{method:'DELETE',auth:true});setTick(n=>n+1)}
-    catch(e){setError(e.message)}
-  }
-  return <>
-    {postError && <p className="zs-error" role="alert">{postError}</p>}
-    {post && <Post p={post} me={me} reload={()=>setTick(n=>n+1)} onDeleted={()=>nav('/')}/>}
-    <section className="card post p-3" aria-label="Bình luận bài viết">
-      <h5>Bình luận</h5>
-      {Array.isArray(comments) && comments.length===0 && <p>Chưa có bình luận.</p>}
-      {Array.isArray(comments) && comments.map(c=><div key={c.id} className="border-bottom py-2">
-        <div className="d-flex justify-content-between gap-2">
-          <Link to={'/users/'+c.idTaiKhoan}>{c.tenDangNhap}</Link>
-          {me && (Number(me.id)===Number(c.idTaiKhoan) || Number(me.id)===Number(post?.idTaiKhoan) || me.phanQuyen==='admin') &&
-            <button type="button" className="btn btn-outline-danger btn-sm" onClick={()=>removeComment(c.id)}>Xóa bình luận</button>}
-        </div>
-        <p className="post-text mb-0">{c.noiDung}</p>
-      </div>)}
-      {post?.commentsEnabled===false ? <p className="zs-comment-closed" role="status">Tác giả đã tắt bình luận cho bài viết này.</p>
-        : me && <form className="d-flex gap-2 mt-3" onSubmit={send}>
-            <input className="form-control" value={text} onChange={e=>setText(e.target.value)} maxLength={10000}
-              required placeholder="Viết bình luận..."/>
-            <button className="btn btn-primary" type="submit" disabled={busy||!text.trim()}>{busy?'Đang gửi...':'Gửi'}</button>
-          </form>}
-      {error&&<p className="zs-error" role="alert">{error}</p>}
-    </section>
-  </>;
-}
 function Profile({ me }) {
   const { id } = useParams();
   const [refresh, setRefresh] = useState(0);
@@ -292,7 +229,7 @@ function App() {
         <Route path="/blocked" element={me ? <BlockedUsersPage/> : <Auth onAuth={setMe}/>} />
         <Route path="/moderation" element={me?.phanQuyen === 'admin' ? <ModerationPage me={me}/> : <div className="zs-not-found">Không có quyền truy cập.</div>} />
         <Route path="/login" element={<Auth onAuth={setMe} />} />
-        <Route path="/posts/:id" element={<Detail me={me} />} />
+        <Route path="/posts/:id" element={<PostDetailPage me={me} />} />
         <Route path="/users/:id" element={<Profile me={me} />} />
         <Route path="/explore" element={<Explore />} />
         <Route path="/messages" element={me ? <MessagesPage me={me} /> : <Auth onAuth={setMe} />} />

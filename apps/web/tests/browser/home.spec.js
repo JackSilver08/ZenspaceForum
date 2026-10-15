@@ -425,3 +425,80 @@ test('Nebula Pearl member discovery opens a real profile with post and media tab
   await expect(mediaTab).toHaveClass(/is-active/);
   await expect(page.locator('.zs-profile-feed')).toBeVisible();
 });
+
+test('comment threads: reply, like, edit, and three-dot moderation permissions', async ({ page,request,browser }) => {
+  const errors=collectErrors(page);
+  const stamp=Date.now().toString(36);
+  const password='CommentThread_123!'+stamp;
+  async function signup(prefix) {
+    const username=prefix+'_'+stamp;
+    const result=await request.post('/api/DangKy',{data:{
+      username,email:username+'@example.test',password,confirmPassword:password
+    }});
+    expect(result.status()).toBe(201);
+    return result.json();
+  }
+  const owner=await signup('thread_owner'),viewer=await signup('thread_peer');
+  const headers=session=>({Authorization:'Bearer '+session.token});
+  const created=await request.post('/api/baiviet',{headers:headers(owner),data:{noiDung:'Comment thread '+stamp}});
+  expect(created.status()).toBe(201);
+  const postId=(await created.json()).id;
+  const seed=await request.post('/api/binhluan',{headers:headers(owner),data:{idBaiDang:postId,noiDung:'First message '+stamp}});
+  expect(seed.status()).toBe(201);
+  const parentId=(await seed.json()).id;
+  await page.addInitScript(({token,user})=>{
+    localStorage.setItem('zen_token',token);
+    localStorage.setItem('zen_user',JSON.stringify(user));
+  },{token:viewer.token,user:viewer.user});
+  const peerContext=await browser.newContext();
+  const ownerPage=await peerContext.newPage();
+  await ownerPage.addInitScript(({token,user})=>{
+    localStorage.setItem('zen_token',token);
+    localStorage.setItem('zen_user',JSON.stringify(user));
+  },{token:owner.token,user:owner.user});
+  try{
+    await page.goto('/posts/'+postId);
+    await expect(page.getByRole('heading',{name:'Chi tiết bài viết'})).toBeVisible();
+    const root=page.locator('#comment-'+parentId);
+    await expect(root).toBeVisible();
+    await root.getByRole('button',{name:'Thích'}).click();
+    await expect(root.getByRole('button',{name:/Đã thích · 1/})).toBeVisible();
+    await root.getByRole('button',{name:'Trả lời'}).click();
+    await expect(page.getByText('Đang trả lời')).toBeVisible();
+    await page.getByPlaceholder('Viết bình luận...').fill('Reply message '+stamp);
+    await page.getByRole('button',{name:'Gửi trả lời'}).click();
+    const reply=page.locator('.zs-comment--reply').filter({hasText:'Reply message '+stamp});
+    await expect(reply).toBeVisible();
+    await reply.getByRole('button',{name:/Tùy chọn bình luận/}).click();
+    await expect(reply.getByRole('button',{name:'Sửa bình luận'})).toBeVisible();
+    await expect(root.getByRole('button',{name:/Tùy chọn bình luận/})).toBeVisible();
+    await root.getByRole('button',{name:/Tùy chọn bình luận/}).click();
+    await expect(root.getByRole('button',{name:'Xóa bình luận'})).toHaveCount(0);
+    await expect(root.getByRole('button',{name:'Sửa bình luận'})).toHaveCount(0);
+
+    await reply.getByRole('button',{name:/Tùy chọn bình luận/}).click();
+    await reply.getByRole('button',{name:'Sửa bình luận'}).click();
+    await reply.getByLabel('Chỉnh sửa bình luận').fill('Edited reply '+stamp);
+    await reply.getByRole('button',{name:'Lưu thay đổi'}).click();
+    await expect(page.getByText('Edited reply '+stamp)).toBeVisible();
+    await expect(reply.getByText('Đã chỉnh sửa')).toBeVisible();
+
+    await ownerPage.goto('/posts/'+postId);
+    const ownComment=ownerPage.locator('#comment-'+parentId);
+    await ownComment.getByRole('button',{name:/Tùy chọn bình luận/}).click();
+    await expect(ownComment.getByRole('button',{name:'Sửa bình luận'})).toBeVisible();
+    await expect(ownComment.getByRole('button',{name:'Xóa bình luận'})).toBeVisible();
+    const notOwner=await request.put('/api/binhluan/'+parentId,{headers:headers(viewer),data:{noiDung:'unauthorized edit'}});
+    expect(notOwner.status()).toBe(403);
+    const commentsResponse=await request.get('/api/binhluan/'+postId,{headers:headers(viewer)});
+    expect(commentsResponse.ok()).toBeTruthy();
+    const comments=await commentsResponse.json();
+    expect(comments.find(c=>c.id===parentId).likeCount).toBe(1);
+    expect(comments.some(c=>c.parentId===parentId&&c.noiDung==='Edited reply '+stamp)).toBeTruthy();
+    expect(errors).toEqual([]);
+  }finally{
+    await peerContext.close();
+    await request.delete('/api/baiviet/'+postId,{headers:headers(owner)});
+    await request.delete('/api/v1/posts/'+postId+'/permanent',{headers:headers(owner)});
+  }
+});

@@ -34,5 +34,5 @@ modal_style=(src/"styles/sprint3.css").read_text()
 assert ".zs-new-post-body:is(:focus,:focus-visible,:hover)" in modal_style
 assert "outline:none!important" in modal_style
 assert ".zs-new-post-tools>button:hover" not in modal_style
-assert "ManagedPostsPage" in web and "PostMedia" in web
+assert "ManagedPostsPage" in web and "PostDetailPage" in web
 print("Sprint 3 privacy, lifecycle and composer static contracts OK")
