@@ -1,0 +1,49 @@
+/* Shared media rendering across Feed, Profile and Post Detail.
+   Preserve the original ratio (especially portraits) and never let an
+   uploaded image determine the card/grid width. */
+.zs-main .zs-post-card,
+.zs-main .post {
+  min-width: 0;
+  max-width: 100%;
+}
+.zs-main .zs-post-media {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: transparent;
+}
+.zs-main .zs-post-media img,
+.zs-main .zs-post-media video {
+  display: block;
+  flex: 0 1 auto;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(70vh, 560px);
+  object-fit: contain;
+  border-radius: 10px;
+}
+.zs-main .zs-post-media video {
+  background: #171b2e;
+}
+.zs-main .zs-post-media--profile {
+  margin: 12px 0 3px;
+}
+.zs-main .zs-media-loading {
+  display: block;
+  padding: 24px;
+  font-size: 12px;
+  color: #72758a;
+}
+@media (max-width: 740px) {
+  .zs-main .zs-post-media img,
+  .zs-main .zs-post-media video {
+    max-height: min(67dvh, 510px);
+  }
+}

@@ -6,6 +6,7 @@
 @import './styles/post-controls.css';
 @import './styles/sprint3.css';
 @import './styles/social-safety.css';
+@import './styles/post-media.css';
 
 /* Compatibility styling for account, search, messaging, and post details
    while their layouts migrate from Bootstrap to the Stitch design system. */
