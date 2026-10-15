@@ -291,8 +291,8 @@ assert api(f"/v1/users/{uid}/block-status",token=comment_author)["blockedBy"] is
 assert any(p["id"]==other_id for p in api("/v1/users/blocks",token=token)["data"])
 api(f"/v1/users/{uid}/follow","POST",token=comment_author,expected=403)
 api("/chat/gui","POST",{"nguoiNhanID":uid,"noiDung":"Blocked DM"},comment_author,403)
-api("/binhluan","POST",{"idBaiDang":pid,"noiDung":"Blocked comment"},comment_author,403)
-api(f"/camxuc/{pid}","POST",{"loaiCamXuc":"love"},comment_author,403)
+api("/binhluan","POST",{"idBaiDang":pid,"noiDung":"Blocked comment"},comment_author,404)
+api(f"/camxuc/{pid}","POST",{"loaiCamXuc":"love"},comment_author,404)
 assert pid not in [p["id"] for p in api("/v1/feed/public",token=comment_author)["data"]]
 api(f"/v1/users/{other_id}/block","DELETE",token=token)
 assert api(f"/v1/users/{other_id}/block-status",token=token)["blocked"] is False
