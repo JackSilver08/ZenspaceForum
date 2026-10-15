@@ -162,6 +162,7 @@ func (a *App) PurgeExpiredPosts(){
  type item struct {id int;media string}
  list:=make([]item,0)
  for rows.Next(){var p item;if rows.Scan(&p.id,&p.media)==nil{list=append(list,p)}}
+ if rows.Err()!=nil{return}
  for _,p:=range list{
   res,err:=a.DB.Exec("DELETE FROM BaiDang WHERE id=? AND lifecycle_state='trashed' AND purge_after<=NOW(6)",p.id)
   if err!=nil{continue}

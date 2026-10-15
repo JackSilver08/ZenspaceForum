@@ -6,7 +6,6 @@ import (
     "fmt"
     "io"
     "net/http"
-    "os"
     "path/filepath"
     "strconv"
     "strings"
@@ -173,15 +172,4 @@ func (a *App) updatePost(c *gin.Context) {
  if err=tx.Commit();err!=nil{fail(c,500,"Không lưu được chỉnh sửa");return}
  c.JSON(200,gin.H{"success":true,"message":"Đã cập nhật","revision":revision+1})
 }
-func (a *App) deletePost(c *gin.Context) {
-    id,ok:=intParam(c,"id");if !ok{return}
-    if !a.postOwner(c,id){return}
-    var oldMedia string
-    _=a.DB.QueryRowContext(c.Request.Context(),"SELECT COALESCE(mediaUrl,'') FROM BaiDang WHERE id=?",id).Scan(&oldMedia)
-    _,err:=a.DB.ExecContext(c.Request.Context(),"DELETE FROM BaiDang WHERE id=?",id)
-    if err!=nil{fail(c,500,"Không xóa được bài viết");return}
-    if strings.HasPrefix(oldMedia,"/uploads/posts/") {
-        _=os.Remove(filepath.Join(a.UploadDir,"posts",filepath.Base(oldMedia)))
-    }
-    c.JSON(200,gin.H{"success":true,"message":"Đã xóa bài viết"})
-}
+
