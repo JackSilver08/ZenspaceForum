@@ -5,6 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './style.css';
 import { api, getUser, getToken, saveSession, logout } from './api';
 import AppShell from './components/layout/AppShell.jsx';
+import { Avatar } from './components/layout/AppShell.jsx';
 import FeedPage, { PostCard } from './features/feed/FeedPage.jsx';
 import MessagesPage from './features/chat/MessagesPage.jsx';
 import PostActionsMenu from './features/feed/PostActionsMenu.jsx';
