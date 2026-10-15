@@ -321,3 +321,104 @@ assert stored["postId"] is None and stored["snapshot"]=="Evidence survives delet
 print("Sprint 2 safety regressions OK: report/admin moderation, block, closed comments, comment owner moderation")
 
 print("Smoke OK: Nginx + React + Gin + MySQL + auth + posts + comments + reactions + follows + chat + media")
+
+
+# Sprint 3 full-system privacy/security/lifecycle regression (existing Sprint 1 & 2
+# suites above continue to run without replacing their checks).
+owner_token = token
+stranger_token = new_account["token"]
+viewer_id = int(new_account["user"]["id"])
+status_v1 = "ZenSpace Sprint3 private status " + stamp
+private = api("/baiviet", "POST", {
+    "noiDung": status_v1, "visibility": "private", "commentsEnabled": False
+}, owner_token, 201)
+private_id = int(private["id"])
+path_private = "/baiviet/" + str(private_id)
+assert api(path_private, token=owner_token)["data"]["visibility"] == "private"
+assert api(path_private, token=owner_token)["data"]["commentsEnabled"] is False
+api(path_private, expected=404)
+api(path_private, token=stranger_token, expected=404)
+assert all(p["id"] != private_id for p in api("/baiviet")["data"])
+assert all(p["id"] != private_id for p in api("/v1/feed/public", token=stranger_token)["data"])
+assert all(p["id"] != private_id for p in api(f"/nguoidung/trangcanhan/{uid}")["data"]["baiViets"])
+assert any(p["id"] == private_id for p in api(f"/nguoidung/trangcanhan/{uid}", token=owner_token)["data"]["baiViets"])
+api(f"/binhluan/{private_id}", expected=404)
+api(f"/camxuc/thongke/{private_id}", expected=404)
+api("/binhluan", "POST", {"idBaiDang":private_id,"noiDung":"Must stay private"},stranger_token,404)
+api(f"/camxuc/{private_id}", "POST", {"loaiCamXuc":"love"},stranger_token,404)
+api(f"/v1/posts/{private_id}/bookmark", "PUT", token=stranger_token, expected=404)
+api(f"/v1/posts/{private_id}/history", token=stranger_token, expected=403)
+api(f"/v1/posts/{private_id}/archive", "PUT", token=stranger_token, expected=403)
+api(f"/v1/posts/{private_id}/visibility", "PATCH", {"visibility":"bogus"},owner_token,400)
+
+# Followers-only is dynamically authorized by Follow, not by a client-side flag.
+api(f"/v1/posts/{private_id}/visibility","PATCH",{"visibility":"followers"},owner_token)
+api(path_private, token=stranger_token, expected=404)
+api(f"/v1/users/{uid}/follow","POST",token=stranger_token)
+assert api(path_private, token=stranger_token)["data"]["visibility"] == "followers"
+api(path_private, expected=404)
+api(f"/v1/users/{uid}/follow","DELETE",token=stranger_token)
+api(path_private, token=stranger_token, expected=404)
+api(f"/v1/posts/{private_id}/visibility","PATCH",{"visibility":"public"},owner_token)
+assert api(path_private)["data"]["visibility"] == "public"
+
+# Transactional history, optimistic revisions, visibility control and restore.
+assert api(path_private)["data"]["revision"] == 1
+api(path_private,"PUT",{"noiDung":status_v1+" v2","expectedRevision":1},owner_token)
+assert api(path_private)["data"]["revision"] == 2
+api(path_private,"PUT",{"noiDung":"Stale edit","expectedRevision":1},owner_token,409)
+versions = api(f"/v1/posts/{private_id}/history",token=owner_token)["data"]
+assert versions and versions[0]["content"] == status_v1
+api(f"/v1/posts/{private_id}/revisions/1/restore","POST",token=owner_token)
+assert api(path_private)["data"]["noiDung"] == status_v1
+assert api(path_private)["data"]["revision"] == 3
+api(f"/v1/posts/{private_id}/history",expected=401)
+
+# Archive removes the post from all ordinary reads but preserves its history.
+api(f"/v1/posts/{private_id}/archive","PUT",token=owner_token)
+api(path_private,token=owner_token,expected=404)
+assert any(p["id"] == private_id for p in api("/v1/me/posts/archived",token=owner_token)["data"])
+assert not api("/v1/me/posts/archived",token=stranger_token)["data"]
+api("/v1/me/posts/archived",expected=401)
+api(f"/v1/posts/{private_id}/archive","DELETE",token=owner_token)
+assert api(path_private)["data"]["id"]==private_id
+
+# Soft-delete 30-day retention, comments and edits survive restoration.
+api(path_private,"DELETE",token=owner_token)
+api(path_private,expected=404)
+api(f"/v1/posts/{private_id}/restore","POST",token=stranger_token,expected=403)
+trashed=api("/v1/me/posts/trashed",token=owner_token)["data"]
+assert any(p["id"] == private_id and p["purgeAfter"] for p in trashed)
+api(f"/v1/posts/{private_id}/restore","POST",token=owner_token)
+assert api(path_private)["data"]["id"]==private_id
+assert api(f"/v1/posts/{private_id}/history",token=owner_token)["data"]
+api(path_private,"DELETE",token=owner_token)
+api(f"/v1/posts/{private_id}/permanent","DELETE",token=stranger_token,expected=403)
+api(f"/v1/posts/{private_id}/permanent","DELETE",token=owner_token)
+api(path_private,expected=404)
+api(f"/v1/posts/{private_id}/restore","POST",token=owner_token,expected=404)
+
+# Security regression for public legacy media URLs and private uploads:
+# the original /uploads/posts/<name> must not bypass privacy policy.
+private_parts = [
+ f'--{boundary}\r\nContent-Disposition: form-data; name="noiDung"\r\n\r\nPrivate attachment\r\n'.encode(),
+ f'--{boundary}\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nprivate\r\n'.encode(),
+ f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="private.gif"\r\nContent-Type: image/gif\r\n\r\n'.encode()+gif+b'\r\n',
+ f'--{boundary}--\r\n'.encode()
+]
+media_post=api("/baiviet","POST",b"".join(private_parts),owner_token,201,"multipart/form-data; boundary="+boundary)
+media_id=int(media_post["id"])
+media_url=ROOT+media_post["mediaUrl"]
+request(media_url,expected=404)
+request(media_url,token=stranger_token,expected=404)
+assert request(media_url,token=owner_token)==gif
+api(f"/v1/posts/{media_id}/visibility","PATCH",{"visibility":"public"},owner_token)
+assert request(media_url)==gif
+api(f"/v1/posts/{media_id}/archive","PUT",token=owner_token)
+request(media_url,expected=404)
+api(f"/v1/posts/{media_id}/archive","DELETE",token=owner_token)
+api(f"/baiviet/{media_id}","DELETE",token=owner_token)
+request(media_url,expected=404)
+api(f"/v1/posts/{media_id}/permanent","DELETE",token=owner_token)
+request(media_url,expected=404)
+print("Sprint 3 full privacy/lifecycle/media regression OK")

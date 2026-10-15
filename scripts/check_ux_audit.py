@@ -23,12 +23,13 @@ for old_widget in ['zs-right-spotlight', 'zs-right-atlas', 'zs-right-recent', 'z
 assert "api('/timkiemnguoidung')" in app, "Suggestions should use real people"
 
 # One real composer (header action dispatches into the same form).
-assert "useState(false)" in feed, "Composer should be collapsed initially"
-assert "zenspace:compose" in app and "zenspace:compose" in feed
-assert "beforeunload" in feed and "guardNavigation" in feed, "Guard user drafts on reload and in-app navigation"
-assert "window.confirm" in feed, "Confirm when abandoning a draft"
-assert 'form.append(' not in feed, "Keep the FormData integration contract updated"
-assert "data.append('noiDung'" in feed and "data.append('tieuDe'" not in feed
+composer = (web / "features/feed/Composer.jsx").read_text(encoding="utf-8")
+assert "useState(false)" in composer, "Composer should be collapsed initially"
+assert "zenspace:compose" in app and "zenspace:compose" in composer
+assert "beforeunload" in composer and "guardNavigation" in composer, "Guard user drafts on reload and in-app navigation"
+assert "window.confirm" in composer, "Confirm when abandoning a draft"
+assert 'form.append(' not in composer, "Keep the FormData integration contract updated"
+assert "payload.append('noiDung'" in composer and "tieuDe" not in composer
 
 # Minimal feed hierarchy: no misleading privacy metadata, fake stats or duplicate title links.
 assert "Công khai" not in feed, "Privacy status is not implemented by the API"

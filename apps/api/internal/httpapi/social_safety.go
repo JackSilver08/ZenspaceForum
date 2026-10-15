@@ -85,6 +85,7 @@ func validReportReason(reason string) bool {return reportReasons[reason]}
 
 func (a *App) reportPost(c *gin.Context){
     id,ok:=intParam(c,"id");if !ok{return}
+    if !a.requireView(c,id){return}
     var body struct {
         Reason string `json:"reason"`
         Details string `json:"details"`

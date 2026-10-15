@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   ArrowRight, Compass, Home, LogIn, LogOut, MessageCircle,
-  PenLine, Search, UserRound, Users, Orbit, ChevronDown, Bookmark, ShieldBan, Flag
+  PenLine, Search, UserRound, Users, Orbit, ChevronDown, Bookmark, ShieldBan, Flag, Archive, Trash2
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -10,6 +10,8 @@ const links = [
   { to: '/', label: 'Bảng tin', icon: Home, end: true },
   { to: '/following', label: 'Đang theo dõi', icon: Users, private: true },
   { to: '/saved', label: 'Đã lưu', icon: Bookmark, private: true },
+  { to: '/archive', label: 'Lưu trữ', icon: Archive, private: true, mobile: false },
+  { to: '/trash', label: 'Thùng rác', icon: Trash2, private: true, mobile: false },
   { to: '/blocked', label: 'Đã chặn', icon: ShieldBan, private: true, mobile: false },
   { to: '/moderation', label: 'Kiểm duyệt', icon: Flag, admin: true, mobile: false },
   { to: '/explore', label: 'Khám phá', icon: Compass },

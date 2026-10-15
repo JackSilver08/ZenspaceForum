@@ -37,6 +37,7 @@ jobs:
           python3 scripts/check_content_posts.py
           python3 scripts/check_post_controls.py
           python3 scripts/check_social_safety.py
+          python3 scripts/check_sprint3.py
       - name: Install dependencies and build
         working-directory: apps/web
         run: |

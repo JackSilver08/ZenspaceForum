@@ -11,8 +11,9 @@ seed=(root/"ZenSpaceDB_latest.sql").read_text(encoding="utf-8")
 migration=(root/"apps/api/internal/platform/posts_migration.go").read_text(encoding="utf-8")
 for label,code in (("post API",api),("profile API",users),("following API",follows),("Feed",feed),("legacy detail/profile",main)):
     assert "tieuDe" not in code and "p.Title" not in code, label+" still depends on post titles"
-assert "data.append('noiDung'" in feed
-assert 'maxLength={10000}' in feed
+composer=(root/"apps/web/src/features/feed/Composer.jsx").read_text()
+assert "payload.append('noiDung'" in composer
+assert 'maxLength={10000}' in composer
 assert "post.noiDung" in feed
 assert "createPost" in api and "INSERT INTO BaiDang(noiDung" in api
 assert "UPDATE BaiDang SET noiDung=?" in api

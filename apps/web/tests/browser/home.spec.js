@@ -267,3 +267,76 @@ test('Sprint 2: report, block, unblock, comment moderation and admin review', as
     await ownerContext.close();
   }
 });
+
+test('Sprint 3: minimal composer, privacy, edit history, archive and trash on desktop/mobile',async({page,request})=>{
+ const errors=collectErrors(page),tag=Date.now().toString(36);
+ const name='life_'+tag,password='Test_Complex_123!'+tag;
+ const reg=await request.post('/api/DangKy',{data:{username:name,email:name+'@example.test',password,confirmPassword:password}});
+ expect(reg.status()).toBe(201);
+ const session=await reg.json();const headers={Authorization:'Bearer '+session.token};
+ await page.addInitScript(({token,user})=>{
+  localStorage.setItem('zen_token',token);
+  localStorage.setItem('zen_user',JSON.stringify(user));
+ },{token:session.token,user:session.user});
+ let postId;
+ const content='Creative ZenSpace story '+tag;
+ const post=()=>page.locator('.zs-post-card').filter({hasText:content});
+ try{
+  await page.goto('/');
+  await page.getByRole('button',{name:'Bạn đang nghĩ gì?'}).click();
+  const dialog=page.getByRole('dialog',{name:'Bài viết mới'});
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Không gian của bạn, câu chuyện của bạn.')).toHaveCount(0);
+  await dialog.getByLabel('Đối tượng xem').selectOption('private');
+  await dialog.getByRole('button',{name:'Chèn emoji'}).click();
+  await dialog.getByRole('group',{name:'Chọn emoji'}).getByRole('button',{name:'✨'}).click();
+  await dialog.getByLabel('Nội dung bài viết').fill(content);
+  await dialog.getByRole('button',{name:'Đăng bài'}).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(post()).toBeVisible();
+  await expect(post()).toContainText('Chỉ mình tôi');
+  const row=post();
+  const menu=()=>row.getByRole('button',{name:'Tùy chọn bài viết'});
+  await menu().click();
+  await expect(row.getByRole('button',{name:'Lịch sử chỉnh sửa'})).toBeVisible();
+  await row.getByRole('button',{name:'Chỉnh sửa bài viết'}).click();
+  await page.getByRole('dialog',{name:'Chỉnh sửa bài viết'}).getByLabel('Nội dung bài viết').fill(content+' edited');
+  await page.getByRole('button',{name:'Lưu thay đổi'}).click();
+  await expect(row).toContainText('edited');
+  await menu().click();
+  await row.getByRole('button',{name:'Lịch sử chỉnh sửa'}).click();
+  await expect(page.getByRole('dialog',{name:'Lịch sử chỉnh sửa'})).toContainText(content);
+  await page.getByRole('button',{name:'Đóng lịch sử'}).click();
+  await menu().click();
+  await row.getByRole('button',{name:'Lưu trữ bài viết'}).click();
+  await expect(row).toHaveCount(0);
+  await page.goto('/archive');
+  await expect(page.locator('.zs-managed-post').filter({hasText:content})).toBeVisible();
+  await page.locator('.zs-managed-post').filter({hasText:content}).getByRole('button',{name:'Khôi phục'}).click();
+  await page.goto('/');
+  await expect(row).toBeVisible();
+  await menu().click();
+  page.once('dialog',d=>d.accept());
+  await row.getByRole('button',{name:'Chuyển vào thùng rác'}).click();
+  await expect(row).toHaveCount(0);
+  await page.goto('/trash');
+  const trashed=page.locator('.zs-managed-post').filter({hasText:content});
+  await expect(trashed).toBeVisible();
+  await expect(trashed).toContainText('Hạn xóa:');
+  await trashed.getByRole('button',{name:'Khôi phục'}).click();
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/');
+  await page.getByRole('button',{name:'Bạn đang nghĩ gì?'}).click();
+  await expect(page.getByRole('dialog',{name:'Bài viết mới'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole('dialog',{name:'Bài viết mới'}).getByRole('button',{name:'Hủy'}).click();
+  expect(errors).toEqual([]);
+ }finally{
+  const list=await request.get('/api/v1/feed/public',{headers});
+  if(list.ok()){const data=await list.json();postId=data.data?.find(p=>p.noiDung.includes(content))?.id;}
+  if(postId){
+   await request.delete('/api/baiviet/'+postId,{headers});
+   await request.delete('/api/v1/posts/'+postId+'/permanent',{headers});
+  }
+ }
+});

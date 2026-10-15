@@ -14,7 +14,7 @@ for marker in ["post_bookmarks","post_hides","pinnedAt", "CREATE TABLE IF NOT EX
     assert marker in migration
 assert "MigratePostControls" in (platform/"platform.go").read_text()
 assert "`pinnedAt` datetime DEFAULT NULL" in sql
-for action in ['Chỉnh sửa bài viết','Lưu bài viết','Ẩn khỏi bảng tin của tôi','Ghim trên trang cá nhân','Xóa bài viết']:
+for action in ['Chỉnh sửa bài viết','Lưu bài viết','Ẩn khỏi bảng tin của tôi','Ghim trên trang cá nhân','Chuyển vào thùng rác']:
     assert action in menu, "Missing post action: "+action
 assert "PostActionsMenu" in feed and "PostActionsMenu" in main
 assert 'path="/saved"' in main

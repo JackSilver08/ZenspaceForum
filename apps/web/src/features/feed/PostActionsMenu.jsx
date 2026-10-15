@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, EyeOff, Flag, MessageSquareOff, MessageSquareText, MoreHorizontal, PenLine, Pin, PinOff, ShieldBan, ShieldCheck, Trash2, X } from 'lucide-react';
+import { Bookmark, BookmarkCheck, EyeOff, Flag, MessageSquareOff, MessageSquareText, MoreHorizontal, PenLine, Pin, PinOff, ShieldBan, ShieldCheck, Trash2, X, Archive, History, Globe } from 'lucide-react';
 import { api } from '../../api';
 
 export default function PostActionsMenu({
@@ -7,6 +7,9 @@ export default function PostActionsMenu({
 }) {
   const [open,setOpen] = useState(false);
   const [editing,setEditing] = useState(false);
+  const [historyOpen,setHistoryOpen] = useState(false);
+  const [history,setHistory] = useState([]);
+  const [visibility,setVisibility] = useState(post.visibility || 'public');
   const [reporting,setReporting] = useState(false);
   const [reason,setReason] = useState('spam');
   const [details,setDetails] = useState('');
@@ -26,6 +29,7 @@ export default function PostActionsMenu({
   const saved = externallySaved === undefined ? localSaved : externallySaved;
 
   useEffect(()=>{setPinned(Boolean(post.isPinned));},[post.isPinned]);
+  useEffect(()=>setVisibility(post.visibility||'public'),[post.visibility]);
   useEffect(()=>{setCommentsEnabled(post.commentsEnabled!==false);},[post.commentsEnabled]);
   useEffect(()=>{if(!editing)setDraft(post.noiDung || '');},[post.noiDung,editing]);
   useEffect(()=>{
@@ -75,7 +79,7 @@ export default function PostActionsMenu({
     e.preventDefault();
     const content=draft.trim();
     if(!content || [...content].length>10000){setError('Nội dung phải từ 1 đến 10.000 ký tự.');return;}
-    await execute(()=>api('/baiviet/'+id,{method:'PUT',auth:true,body:{noiDung:content}}),()=>{
+    await execute(()=>api('/baiviet/'+id,{method:'PUT',auth:true,body:{noiDung:content,expectedRevision:post.revision||0}}),()=>{
       setEditing(false);onChanged?.();
     });
   }
@@ -112,9 +116,28 @@ export default function PostActionsMenu({
       setReporting(false);setReported(true);
     });
   }
+  async function changeVisibility(next){
+    await execute(()=>api('/v1/posts/'+id+'/visibility',{method:'PATCH',auth:true,body:{visibility:next}}),()=>{
+      setVisibility(next);onChanged?.();
+    });
+  }
+  async function archive(){
+    await execute(()=>api('/v1/posts/'+id+'/archive',{method:'PUT',auth:true}),()=>onDeleted?.());
+  }
+  async function showHistory(){
+    setError('');setOpen(false);setHistoryOpen(true);
+    try{const res=await api('/v1/posts/'+id+'/history',{auth:true});setHistory(res.data||[])}
+    catch(err){setError(err.message)}
+  }
+  async function restoreHistory(revision){
+    if(!window.confirm('Khôi phục nội dung từ phiên bản này?'))return;
+    await execute(()=>api('/v1/posts/'+id+'/revisions/'+revision+'/restore',{method:'POST',auth:true}),()=>{
+      setHistoryOpen(false);onChanged?.();
+    });
+  }
   async function remove(){
     setOpen(false);
-    if(!window.confirm('Xóa vĩnh viễn bài viết này? Hành động không thể hoàn tác.'))return;
+    if(!window.confirm('Chuyển bài viết vào thùng rác trong 30 ngày?'))return;
     await execute(()=>api('/baiviet/'+id,{method:'DELETE',auth:true}),()=>onDeleted?.());
   }
 
@@ -133,6 +156,17 @@ export default function PostActionsMenu({
           {saved ? <BookmarkCheck size={18}/> : <Bookmark size={18}/>}
           {saved?'Bỏ lưu bài viết':'Lưu bài viết'}
         </button>}
+        {owner && <div className="zs-control-visibility">
+          <label htmlFor={'zs-visibility-'+id}><Globe size={17}/> Ai có thể xem</label>
+          <select id={'zs-visibility-'+id} value={visibility} disabled={busy}
+            onChange={e=>changeVisibility(e.target.value)}>
+            <option value="public">Công khai</option>
+            <option value="followers">Người theo dõi</option>
+            <option value="private">Chỉ mình tôi</option>
+          </select>
+        </div>}
+        {owner && <button type="button" disabled={busy} onClick={showHistory}><History size={18}/> Lịch sử chỉnh sửa</button>}
+        {owner && <button type="button" disabled={busy} onClick={archive}><Archive size={18}/> Lưu trữ bài viết</button>}
         {owner && <button type="button" disabled={busy} onClick={changePinned}>
           {pinned ? <PinOff size={18}/> : <Pin size={18}/>}
           {pinned?'Bỏ ghim khỏi hồ sơ':'Ghim trên trang cá nhân'}
@@ -154,7 +188,7 @@ export default function PostActionsMenu({
         </button>}
         {canDelete && <><div className="zs-control-divider"/>
           <button className="zs-control-danger" type="button" disabled={busy} onClick={remove}>
-            <Trash2 size={18}/> Xóa bài viết
+            <Trash2 size={18}/> Chuyển vào thùng rác
           </button>
         </>}
       </div>}
@@ -179,6 +213,19 @@ export default function PostActionsMenu({
             </button>
           </footer>
         </form>
+      </section>
+    </div>}
+    {historyOpen && <div className="zs-edit-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setHistoryOpen(false)}}>
+      <section className="zs-edit-dialog" role="dialog" aria-modal="true" aria-labelledby={'zs-history-heading-'+id}>
+        <header><h2 id={'zs-history-heading-'+id}>Lịch sử chỉnh sửa</h2>
+          <button type="button" aria-label="Đóng lịch sử" onClick={()=>setHistoryOpen(false)}><X size={18}/></button>
+        </header>
+        {history.length===0?<p>Chưa có phiên bản đã chỉnh sửa.</p>:
+         history.map(item=><div key={item.revision} className="zs-history-row">
+           <strong>Phiên bản {item.revision}</strong><p>{item.content}</p>
+           <button type="button" disabled={busy} onClick={()=>restoreHistory(item.revision)}>Khôi phục phiên bản này</button>
+         </div>)}
+        {error&&<p className="zs-error" role="alert">{error}</p>}
       </section>
     </div>}
     {reporting && <div className="zs-edit-overlay" role="presentation"

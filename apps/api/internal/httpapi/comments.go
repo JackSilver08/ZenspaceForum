@@ -10,6 +10,7 @@ import (
 )
 func (a *App) listComments(c *gin.Context) {
     id,ok:=intParam(c,"id");if !ok{return}
+    if !a.requireView(c,id){return}
     rows,err:=a.DB.QueryContext(c.Request.Context(),
         "SELECT b.id,b.idBaiDang,b.idTaiKhoan,b.noiDung,b.ngayBinhLuan,t.tenDangNhap,COALESCE(t.avatar,'') FROM binhluan b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE b.idBaiDang=? ORDER BY b.ngayBinhLuan ASC,b.id ASC",id)
     if err!=nil{fail(c,500,"Lỗi tải bình luận");return}
@@ -31,6 +32,7 @@ func (a *App) addComment(c *gin.Context) {
     postID, ok := parsePositiveID(body["idBaiDang"])
     if !ok { postID, ok = parsePositiveID(body["postId"]) }
     if !ok {fail(c,400,"ID bài viết phải là số nguyên dương");return}
+    if !a.requireView(c,postID){return}
     var author int
     var enabled bool
     err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT idTaiKhoan,commentsEnabled FROM BaiDang WHERE id=?",postID).Scan(&author,&enabled)
@@ -77,6 +79,7 @@ func (a *App) deleteComment(c *gin.Context) {
 
 func (a *App) setCommentsEnabled(c *gin.Context) {
     id,ok:=intParam(c,"id");if !ok{return}
+    if !a.requireActiveOwner(c,id){return}
     var body struct { Enabled *bool `json:"enabled"` }
     if err:=c.ShouldBindJSON(&body);err!=nil||body.Enabled==nil {
         fail(c,400,"Thiếu trạng thái bật/tắt bình luận");return

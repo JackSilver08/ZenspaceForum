@@ -22,10 +22,13 @@ type post struct {
     Created time.Time
     PinnedAt sql.NullTime
     CommentsEnabled bool
+    Visibility,State string
+    Revision int
+    UpdatedAt sql.NullTime
     Reactions gin.H
 }
 func (p post) JSON() gin.H {
-    return gin.H{"id":p.ID,"idTaiKhoan":p.OwnerID,"tenDangNhap":p.Author,"avatar":p.Avatar,"noiDung":p.Content,"mediaUrl":p.Media,"ngayDang":p.Created.Format(time.RFC3339),"reactions":p.Reactions,"isPinned":p.PinnedAt.Valid,"commentsEnabled":p.CommentsEnabled}
+    return gin.H{"id":p.ID,"idTaiKhoan":p.OwnerID,"tenDangNhap":p.Author,"avatar":p.Avatar,"noiDung":p.Content,"mediaUrl":p.Media,"ngayDang":p.Created.Format(time.RFC3339),"reactions":p.Reactions,"isPinned":p.PinnedAt.Valid,"commentsEnabled":p.CommentsEnabled,"visibility":p.Visibility,"lifecycleState":p.State,"revision":p.Revision,"edited":p.UpdatedAt.Valid}
 }
 
 func emptyReactionCounts() gin.H {
@@ -68,13 +71,13 @@ func (a *App) listPosts(c *gin.Context) {
     limit, _ := strconv.Atoi(c.DefaultQuery("limit","30"))
     if limit < 1 { limit = 30 }; if limit > 100 { limit = 100 }
     rows,err := a.DB.QueryContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled FROM BaiDang b JOIN TaiKhoan t ON b.idTaiKhoan=t.id ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?", limit)
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled,b.visibility,b.lifecycle_state,b.revision,b.updated_at FROM BaiDang b JOIN TaiKhoan t ON b.idTaiKhoan=t.id WHERE "+accessiblePostSQL("b",a.viewer(c))+" ORDER BY b.ngayTao DESC,b.id DESC LIMIT ?", limit)
     if err != nil { fail(c,500,"Không thể tải bài viết");return }
     defer rows.Close()
     data := make([]post,0)
     for rows.Next() {
         var p post
-        if err := rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled); err != nil { fail(c,500,"Lỗi dữ liệu bài viết"); return }
+        if err := rows.Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled,&p.Visibility,&p.State,&p.Revision,&p.UpdatedAt); err != nil { fail(c,500,"Lỗi dữ liệu bài viết"); return }
         data=append(data,p)
     }
     if rows.Err()!=nil { fail(c,500,"Lỗi đọc bài viết");return }
@@ -84,8 +87,8 @@ func (a *App) getPost(c *gin.Context) {
     id,ok:=intParam(c,"id");if !ok{return}
     var p post
     err:=a.DB.QueryRowContext(c.Request.Context(),
-        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE b.id=?",id).
-        Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled)
+        "SELECT b.id,b.idTaiKhoan,t.tenDangNhap,b.noiDung,COALESCE(b.mediaUrl,''),b.ngayTao,COALESCE(t.avatar,''),b.pinnedAt,b.commentsEnabled,b.visibility,b.lifecycle_state,b.revision,b.updated_at FROM BaiDang b JOIN TaiKhoan t ON t.id=b.idTaiKhoan WHERE b.id=? AND "+accessiblePostSQL("b",a.viewer(c)),id).
+        Scan(&p.ID,&p.OwnerID,&p.Author,&p.Content,&p.Media,&p.Created,&p.Avatar,&p.PinnedAt,&p.CommentsEnabled,&p.Visibility,&p.State,&p.Revision,&p.UpdatedAt)
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy bài viết");return}
     if err!=nil{fail(c,500,"Lỗi truy vấn");return}
     batch:=[]post{p}
@@ -98,9 +101,14 @@ func validPostContent(content string) bool {
 }
 
 func (a *App) createPost(c *gin.Context) {
-    var content,media string
+    var content,media,visibility string
+    visibility="public"
+    commentsEnabled:=true
     if strings.HasPrefix(c.ContentType(),"multipart/") {
         content=strings.TrimSpace(c.PostForm("noiDung"))
+        visibility=strings.TrimSpace(c.PostForm("visibility"))
+        if visibility=="" {visibility="public"}
+        if c.PostForm("commentsEnabled")=="false" {commentsEnabled=false}
         if !validPostContent(content) { fail(c,400,"Nội dung phải từ 1 đến 10000 ký tự");return }
         if f,err:=c.FormFile("file");err==nil {
             if f.Size>20<<20 { fail(c,413,"File tối đa 20MB"); return }
@@ -123,12 +131,15 @@ func (a *App) createPost(c *gin.Context) {
         var body map[string]interface{}
         if err:=c.ShouldBindJSON(&body);err!=nil{fail(c,400,"JSON không hợp lệ");return}
         content=textVal(body,"noiDung","NoiDung")
+        if v:=textVal(body,"visibility");v!="" {visibility=v}
+        if v,ok:=body["commentsEnabled"].(bool);ok {commentsEnabled=v}
     }
+    if !validVisibility(visibility){fail(c,400,"Quyền xem không hợp lệ");return}
     content=strings.TrimSpace(content)
     if !validPostContent(content) {fail(c,400,"Nội dung phải từ 1 đến 10000 ký tự");return}
     res,err:=a.DB.ExecContext(c.Request.Context(),
-        "INSERT INTO BaiDang(noiDung,idTaiKhoan,ngayTao,mediaUrl) VALUES(?,?,NOW(),?)",
-        content,userID(c),media)
+        "INSERT INTO BaiDang(noiDung,idTaiKhoan,ngayTao,mediaUrl,visibility,commentsEnabled) VALUES(?,?,NOW(),?,?,?)",
+        content,userID(c),media,visibility,commentsEnabled)
     if err!=nil{fail(c,500,"Không thể đăng bài");return}
     id,_:=res.LastInsertId()
     c.JSON(201,gin.H{"success":true,"message":"Đăng bài thành công","id":id,"mediaUrl":media})
@@ -142,15 +153,25 @@ func (a *App) postOwner(c *gin.Context,id int) bool {
     return true
 }
 func (a *App) updatePost(c *gin.Context) {
-    id,ok:=intParam(c,"id");if !ok{return}
-    if !a.postOwner(c,id){return}
-    var body map[string]interface{}
-    if err:=c.ShouldBindJSON(&body);err!=nil{fail(c,400,"JSON không hợp lệ");return}
-    content:=strings.TrimSpace(textVal(body,"noiDung","NoiDung"))
-    if !validPostContent(content) {fail(c,400,"Nội dung phải từ 1 đến 10000 ký tự");return}
-    _,err:=a.DB.ExecContext(c.Request.Context(),"UPDATE BaiDang SET noiDung=? WHERE id=?",content,id)
-    if err!=nil{fail(c,500,"Không sửa được bài viết");return}
-    c.JSON(200,gin.H{"success":true,"message":"Đã cập nhật"})
+ id,ok:=intParam(c,"id");if !ok{return}
+ var body struct {Content string `json:"noiDung"`;ExpectedRevision int `json:"expectedRevision"`}
+ if err:=c.ShouldBindJSON(&body);err!=nil{fail(c,400,"JSON không hợp lệ");return}
+ content:=strings.TrimSpace(body.Content)
+ if !validPostContent(content){fail(c,400,"Nội dung phải từ 1 đến 10000 ký tự");return}
+ tx,err:=a.DB.BeginTx(c.Request.Context(),nil);if err!=nil{fail(c,500,"Không thể bắt đầu chỉnh sửa");return}
+ defer tx.Rollback()
+ var owner,revision int;var old,state string
+ err=tx.QueryRowContext(c.Request.Context(),"SELECT idTaiKhoan,noiDung,revision,lifecycle_state FROM BaiDang WHERE id=? FOR UPDATE",id).Scan(&owner,&old,&revision,&state)
+ if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy bài viết");return}
+ if err!=nil{fail(c,500,"Không kiểm tra được bài viết");return}
+ if owner!=userID(c)&&!isAdmin(c){fail(c,403,"Không có quyền chỉnh sửa");return}
+ if state!="active"{fail(c,409,"Bài viết không hoạt động");return}
+ if body.ExpectedRevision>0&&body.ExpectedRevision!=revision{fail(c,409,"Bài viết đã được chỉnh sửa ở nơi khác. Vui lòng tải lại");return}
+ if old==content{c.JSON(200,gin.H{"success":true,"revision":revision});return}
+ if _,err=tx.ExecContext(c.Request.Context(),"INSERT INTO post_edit_history(post_id,revision,content_before,edited_by) VALUES(?,?,?,?)",id,revision,old,userID(c));err!=nil{fail(c,500,"Không lưu được lịch sử");return}
+ if _,err=tx.ExecContext(c.Request.Context(),"UPDATE BaiDang SET noiDung=?,revision=revision+1,updated_at=NOW(6) WHERE id=?",content,id);err!=nil{fail(c,500,"Không sửa được bài");return}
+ if err=tx.Commit();err!=nil{fail(c,500,"Không lưu được chỉnh sửa");return}
+ c.JSON(200,gin.H{"success":true,"message":"Đã cập nhật","revision":revision+1})
 }
 func (a *App) deletePost(c *gin.Context) {
     id,ok:=intParam(c,"id");if !ok{return}
