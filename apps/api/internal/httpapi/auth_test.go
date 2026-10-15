@@ -16,22 +16,6 @@ func init() { gin.SetMode(gin.TestMode) }
 
 var testSecret = []byte("test-secret-key-for-unit-tests")
 
-// makeTestToken creates a valid JWT for testing.
-func makeTestToken(t *testing.T, id int, username, role string) string {
-	t.Helper()
-	claims := jwt.MapClaims{
-		"id":          id,
-		"tenDangNhap": username,
-		"phanQuyen":   role,
-		"exp":         time.Now().Add(24 * time.Hour).Unix(),
-	}
-	tok, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(testSecret)
-	if err != nil {
-		t.Fatalf("failed to sign test token: %v", err)
-	}
-	return tok
-}
-
 func makeExpiredToken(t *testing.T) string {
 	t.Helper()
 	claims := jwt.MapClaims{
