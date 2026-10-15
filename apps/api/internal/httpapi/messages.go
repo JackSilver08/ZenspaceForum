@@ -17,8 +17,17 @@ func (a *App) sendMessage(c *gin.Context){
     err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT id FROM TaiKhoan WHERE id=?",receiver).Scan(&exists)
     if err==sql.ErrNoRows{fail(c,404,"Người nhận không tồn tại");return}
     if err!=nil{fail(c,500,"Lỗi kiểm tra người nhận");return}
-    _,err=a.DB.ExecContext(c.Request.Context(),"INSERT INTO tin_nhan(nguoi_gui_id,nguoi_nhan_id,noi_dung) VALUES(?,?,?)",userID(c),int(receiver),content)
+    blocked,err:=a.blockedBetween(c.Request.Context(),userID(c),receiver)
+    if err!=nil{fail(c,500,"Lỗi kiểm tra quyền nhắn tin");return}
+    if blocked{fail(c,403,"Không thể nhắn tin khi tài khoản đã bị chặn");return}
+    result,err:=a.DB.ExecContext(c.Request.Context(),
+        "INSERT INTO tin_nhan(nguoi_gui_id,nguoi_nhan_id,noi_dung) "+
+        "SELECT ?,?,? FROM DUAL WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE "+
+        "(blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?))",
+        userID(c),receiver,content,userID(c),receiver,receiver,userID(c))
     if err!=nil{fail(c,500,"Không gửi được tin nhắn");return}
+    n,_:=result.RowsAffected()
+    if n==0{fail(c,403,"Không thể nhắn tin khi tài khoản đã bị chặn");return}
     c.JSON(201,gin.H{"success":true,"message":"Đã gửi"})
 }
 func (a *App) chatHistory(c *gin.Context){

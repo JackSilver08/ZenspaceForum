@@ -29,6 +29,7 @@ CREATE TABLE `BaiDang` (
   `idTaiKhoan` int NOT NULL,
   `ngayTao` datetime DEFAULT CURRENT_TIMESTAMP,
   `pinnedAt` datetime DEFAULT NULL,
+  `commentsEnabled` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   KEY `idTaiKhoan` (`idTaiKhoan`),
   CONSTRAINT `BaiDang_ibfk_1` FOREIGN KEY (`idTaiKhoan`) REFERENCES `TaiKhoan` (`id`) ON DELETE CASCADE

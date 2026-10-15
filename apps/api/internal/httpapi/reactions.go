@@ -47,9 +47,12 @@ func (a *App) react(c *gin.Context){
     valid:=false;for _,k:=range reactionTypes{if k==kind{valid=true;break}}
     if !valid{fail(c,400,"Loại cảm xúc không hợp lệ");return}
     var postExists int
-    err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT id FROM BaiDang WHERE id=?",id).Scan(&postExists)
+    err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT idTaiKhoan FROM BaiDang WHERE id=?",id).Scan(&postExists)
     if err==sql.ErrNoRows{fail(c,404,"Không tìm thấy bài viết");return}
     if err!=nil{fail(c,500,"Lỗi kiểm tra bài viết");return}
+    blocked,err:=a.blockedBetween(c.Request.Context(),userID(c),postExists)
+    if err!=nil{fail(c,500,"Không kiểm tra được quyền cảm xúc");return}
+    if blocked{fail(c,403,"Không thể tương tác do trạng thái chặn");return}
     var existing string
     currentErr:=a.DB.QueryRowContext(c.Request.Context(),
         "SELECT loaiCamXuc FROM Cam_Xuc WHERE idBaiDang=? AND idTaiKhoan=?",id,userID(c)).Scan(&existing)

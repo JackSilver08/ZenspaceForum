@@ -265,4 +265,59 @@ api("/v1/posts/987654321/pin","PUT",token=token,expected=404)
 
 print("Post Control Center regression OK: bookmark, hide, pin, access control, privacy and undo")
 
+
+# Sprint 2: comments belong to their author and post owner; closed comments reject new ones.
+comment_author=new_account["token"]
+api(f"/v1/posts/{pid}/comments","PUT",{"enabled":False},comment_author,403)
+api(f"/v1/posts/{pid}/comments","PUT",{"enabled":False},old["token"],403)
+api("/v1/posts/999999/comments","PUT",{"enabled":False},token,404)
+api(f"/v1/posts/{pid}/comments","PUT",{"enabled":False},token)
+assert api("/baiviet/"+str(pid))["data"]["commentsEnabled"] is False
+api("/binhluan","POST",{"idBaiDang":pid,"noiDung":"Cannot enter closed thread"},comment_author,403)
+api("/binhluan","POST",{"idBaiDang":pid,"noiDung":"Author also closed"},token,403)
+api(f"/v1/posts/{pid}/comments","PUT",{"enabled":True},token)
+assert api("/baiviet/"+str(pid))["data"]["commentsEnabled"] is True
+api("/binhluan","POST",{"idBaiDang":pid,"noiDung":"Visitor comment to moderate"},comment_author,201)
+foreign_comment=next(c for c in api("/binhluan/"+str(pid)) if c["noiDung"]=="Visitor comment to moderate")
+api("/binhluan/"+str(foreign_comment["id"]),"DELETE",token=token)
+assert all(c["id"]!=foreign_comment["id"] for c in api("/binhluan/"+str(pid)))
+
+# Two-way interaction restriction and private block list.
+other_id=int(new_account["user"]["id"])
+api(f"/v1/users/{other_id}/block","PUT",token=token)
+api(f"/v1/users/{other_id}/block","PUT",token=token)
+assert api(f"/v1/users/{other_id}/block-status",token=token)["blocked"] is True
+assert api(f"/v1/users/{uid}/block-status",token=comment_author)["blockedBy"] is True
+assert any(p["id"]==other_id for p in api("/v1/users/blocks",token=token)["data"])
+api(f"/v1/users/{uid}/follow","POST",token=comment_author,expected=403)
+api("/chat/gui","POST",{"nguoiNhanID":uid,"noiDung":"Blocked DM"},comment_author,403)
+api("/binhluan","POST",{"idBaiDang":pid,"noiDung":"Blocked comment"},comment_author,403)
+api(f"/camxuc/{pid}","POST",{"loaiCamXuc":"love"},comment_author,403)
+assert pid not in [p["id"] for p in api("/v1/feed/public",token=comment_author)["data"]]
+api(f"/v1/users/{other_id}/block","DELETE",token=token)
+assert api(f"/v1/users/{other_id}/block-status",token=token)["blocked"] is False
+assert api("/v1/users/blocks",token=token)["data"]==[]
+assert pid in [p["id"] for p in api("/v1/feed/public",token=comment_author)["data"]]
+
+# Reports are non-self, validated, private and permanently reviewable by admin.
+api(f"/v1/posts/{pid}/report","POST",{"reason":"spam"},token,400)
+api(f"/v1/posts/{pid}/report","POST",{"reason":"invalid"},comment_author,400)
+api("/v1/posts/999999/report","POST",{"reason":"spam"},comment_author,404)
+api("/v1/moderation/reports",expected=401)
+api("/v1/moderation/reports",token=token,expected=403)
+api("/v1/moderation/reports/1","PUT",{"status":"dismissed"},token,403)
+report_target=api("/baiviet","POST",{"noiDung":"Evidence survives deleting a post"},token,201)["id"]
+api(f"/v1/posts/{report_target}/report","POST",{"reason":"harassment","details":"Integration review"},comment_author,201)
+api(f"/v1/posts/{report_target}/report","POST",{"reason":"harassment"},comment_author,409)
+reports=api("/v1/moderation/reports",token=old["token"])["data"]
+record=next(r for r in reports if r["postId"]==report_target)
+assert record["reason"]=="harassment" and record["snapshot"]=="Evidence survives deleting a post"
+api(f"/v1/moderation/reports/{record['id']}","PUT",{"status":"unexpected"},old["token"],400)
+api(f"/v1/moderation/reports/{record['id']}","PUT",{"status":"actioned"},old["token"])
+api(f"/v1/moderation/reports/{record['id']}","PUT",{"status":"dismissed"},old["token"],409)
+api(f"/baiviet/{report_target}","DELETE",token=token)
+stored=next(r for r in api("/v1/moderation/reports?status=all",token=old["token"])["data"] if r["id"]==record["id"])
+assert stored["postId"] is None and stored["snapshot"]=="Evidence survives deleting a post"
+print("Sprint 2 safety regressions OK: report/admin moderation, block, closed comments, comment owner moderation")
+
 print("Smoke OK: Nginx + React + Gin + MySQL + auth + posts + comments + reactions + follows + chat + media")

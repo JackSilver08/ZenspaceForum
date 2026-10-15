@@ -190,3 +190,80 @@ test('Post Control Center edits, pins, saves, hides and restores posts', async (
     await request.delete('/api/baiviet/'+peerId,{headers:headers(peer)});
   }
 });
+
+test('Sprint 2: report, block, unblock, comment moderation and admin review', async ({ page, request, browser }) => {
+  const errors=collectErrors(page);
+  const tag=Date.now().toString(36),password='SafetyRegression_123!'+tag;
+  async function signup(name) {
+    const r=await request.post('/api/DangKy',{data:{username:name,email:name+'@example.test',password,confirmPassword:password}});
+    expect(r.status()).toBe(201);return r.json();
+  }
+  const owner=await signup('safety_owner_'+tag), viewer=await signup('safety_viewer_'+tag);
+  const headers=(a)=>({Authorization:'Bearer '+a.token});
+  const body='Social safety regression '+tag;
+  const created=await request.post('/api/baiviet',{headers:headers(owner),data:{noiDung:body}});
+  expect(created.status()).toBe(201);const postId=(await created.json()).id;
+  const authorId=owner.user.id;
+  const post=()=>page.locator('.zs-post-card').filter({hasText:body});
+  await page.addInitScript(({token,user})=>{
+    localStorage.setItem('zen_token',token);localStorage.setItem('zen_user',JSON.stringify(user));
+  },{token:viewer.token,user:viewer.user});
+  const ownerContext=await browser.newContext();
+  const ownerPage=await ownerContext.newPage();
+  await ownerPage.addInitScript(({token,user})=>{
+    localStorage.setItem('zen_token',token);localStorage.setItem('zen_user',JSON.stringify(user));
+  },{token:owner.token,user:owner.user});
+  try {
+    await page.goto('/');
+    await expect(post()).toBeVisible();
+    await post().getByRole('button',{name:'Tùy chọn bài viết'}).click();
+    await post().getByRole('button',{name:'Báo cáo bài viết'}).click();
+    const dialog=page.getByRole('dialog',{name:'Báo cáo bài viết'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Lý do báo cáo').selectOption('spam');
+    await dialog.getByLabel('Mô tả thêm (tùy chọn)').fill('Test moderation queue');
+    await dialog.getByRole('button',{name:'Gửi báo cáo'}).click();
+    await expect(page.getByText('Báo cáo đã được chuyển đến quản trị viên.')).toBeVisible();
+
+    await post().getByRole('button',{name:'Tùy chọn bài viết'}).click();
+    await post().getByRole('button',{name:'Chặn tác giả'}).click();
+    await expect(post()).toHaveCount(0);
+    await page.goto('/blocked');
+    await expect(page.locator('.zs-safety-item').getByText(owner.user.tenDangNhap)).toBeVisible();
+    await page.getByRole('button',{name:'Bỏ chặn'}).click();
+    await page.goto('/');
+    await expect(post()).toBeVisible();
+
+    await ownerPage.goto('/posts/'+postId);
+    const ownMenu=ownerPage.getByRole('button',{name:'Tùy chọn bài viết'});
+    await ownMenu.click();
+    await ownerPage.getByRole('button',{name:'Tắt bình luận'}).click();
+    await expect(ownerPage.getByText('Tác giả đã tắt bình luận cho bài viết này.')).toBeVisible();
+    await ownerPage.reload();
+    await expect(ownerPage.getByText('Tác giả đã tắt bình luận cho bài viết này.')).toBeVisible();
+    await ownMenu.click();
+    await ownerPage.getByRole('button',{name:'Bật bình luận'}).click();
+    await expect(ownerPage.getByPlaceholder('Viết bình luận...')).toBeVisible();
+
+    const adminResponse=await request.post('/api/DangNhap',{data:{TenDangNhap:'admin',MatKhau:'ZenSpaceDemo123!'}});
+    expect(adminResponse.ok()).toBeTruthy();
+    const admin=await adminResponse.json();
+    const adminContext=await browser.newContext();
+    const adminPage=await adminContext.newPage();
+    await adminPage.addInitScript(({token,user})=>{
+      localStorage.setItem('zen_token',token);localStorage.setItem('zen_user',JSON.stringify(user));
+    },{token:admin.token,user:admin.user});
+    try {
+      await adminPage.goto('/moderation');
+      await expect(adminPage.getByRole('heading',{name:'Trung tâm kiểm duyệt'})).toBeVisible();
+      const card=adminPage.locator('.zs-report-card').filter({hasText:'Test moderation queue'});
+      await expect(card).toBeVisible();
+      await card.getByRole('button',{name:'Bỏ qua'}).click();
+      await expect(card).toHaveCount(0);
+    } finally { await adminContext.close(); }
+    expect(errors).toEqual([]);
+  } finally {
+    await request.delete('/api/baiviet/'+postId,{headers:headers(owner)});
+    await ownerContext.close();
+  }
+});

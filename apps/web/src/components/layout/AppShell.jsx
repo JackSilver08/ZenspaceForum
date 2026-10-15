@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   ArrowRight, Compass, Home, LogIn, LogOut, MessageCircle,
-  PenLine, Search, UserRound, Users, Orbit, ChevronDown, Bookmark
+  PenLine, Search, UserRound, Users, Orbit, ChevronDown, Bookmark, ShieldBan, Flag
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -10,6 +10,8 @@ const links = [
   { to: '/', label: 'Bảng tin', icon: Home, end: true },
   { to: '/following', label: 'Đang theo dõi', icon: Users, private: true },
   { to: '/saved', label: 'Đã lưu', icon: Bookmark, private: true },
+  { to: '/blocked', label: 'Đã chặn', icon: ShieldBan, private: true, mobile: false },
+  { to: '/moderation', label: 'Kiểm duyệt', icon: Flag, admin: true, mobile: false },
   { to: '/explore', label: 'Khám phá', icon: Compass },
   { to: '/messages', label: 'Tin nhắn', icon: MessageCircle, private: true },
 ];
@@ -115,7 +117,7 @@ export default function AppShell({ me, onLogout, children }) {
       <aside className="zs-sidebar" aria-label="Điều hướng chính">
         <div className="zs-sidebar-label">KHÔNG GIAN CỦA BẠN</div>
         <nav className="zs-side-nav" aria-label="Điều hướng">
-          {links.filter(item => !item.private || me).map(item=><NavigationLink key={item.to} {...item}/>)}
+          {links.filter(item => (!item.private || me) && (!item.admin || me?.phanQuyen==='admin')).map(item=><NavigationLink key={item.to} {...item}/>)}
         </nav>
         <div className="zs-sidebar-footer">ZENSPACE <span>✦</span> 2026</div>
       </aside>
@@ -129,7 +131,7 @@ export default function AppShell({ me, onLogout, children }) {
       </div>
     </div>
     <nav className="zs-mobile-nav" aria-label="Điều hướng trên điện thoại">
-      {links.filter(item => !item.private || me).map(item=><NavigationLink key={item.to} {...item}/>)}
+      {links.filter(item => item.mobile !== false && (!item.private || me) && (!item.admin || me?.phanQuyen==='admin')).map(item=><NavigationLink key={item.to} {...item}/>)}
     </nav>
   </div>;
 }
