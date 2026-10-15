@@ -286,6 +286,16 @@ test('Sprint 3: minimal composer, privacy, edit history, archive and trash on de
   await page.getByRole('button',{name:'Bạn đang nghĩ gì?'}).click();
   const dialog=page.getByRole('dialog',{name:'Bài viết mới'});
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Hủy'})).toHaveCount(0);
+  await expect(dialog.getByRole('button',{name:'Đóng'})).toHaveCount(1);
+  const editor=dialog.getByRole('textbox',{name:'Nội dung bài viết'});
+  await editor.click();
+  const editorVisuals=await editor.evaluate(el=>{
+    const style=getComputedStyle(el);
+    return {outline:style.outlineStyle,border:style.borderTopStyle,shadow:style.boxShadow};
+  });
+  expect(editorVisuals.outline).toBe('none');
+  expect(editorVisuals.shadow).toBe('none');
   await expect(dialog.getByText('Không gian của bạn, câu chuyện của bạn.')).toHaveCount(0);
   await dialog.getByLabel('Đối tượng xem').selectOption('private');
   await dialog.getByRole('button',{name:'Chèn emoji'}).click();
@@ -329,7 +339,10 @@ test('Sprint 3: minimal composer, privacy, edit history, archive and trash on de
   await page.getByRole('button',{name:'Bạn đang nghĩ gì?'}).click();
   await expect(page.getByRole('dialog',{name:'Bài viết mới'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  await page.getByRole('dialog',{name:'Bài viết mới'}).getByRole('button',{name:'Hủy'}).click();
+  const mobileComposer=page.getByRole('dialog',{name:'Bài viết mới'});
+  await expect(mobileComposer.getByRole('button',{name:'Hủy'})).toHaveCount(0);
+  await mobileComposer.getByRole('button',{name:'Đóng'}).click();
+  await expect(mobileComposer).not.toBeVisible();
   expect(errors).toEqual([]);
  }finally{
   const list=await request.get('/api/v1/feed/public',{headers});

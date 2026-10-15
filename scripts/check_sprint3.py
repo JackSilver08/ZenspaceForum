@@ -28,5 +28,11 @@ assert "zs-new-post-dialog" in composer and "Bạn đang nghĩ gì?" in composer
 assert "payload.append('visibility'" in composer
 assert "ImagePlus" in composer and "Smile" in composer and "MoreHorizontal" in composer
 assert "Không gian của bạn, câu chuyện của bạn." not in composer
+assert 'className="zs-new-post-cancel"' not in composer
+assert 'className="zs-new-post-close"' in composer
+modal_style=(src/"styles/sprint3.css").read_text()
+assert ".zs-new-post-body:is(:focus,:focus-visible,:hover)" in modal_style
+assert "outline:none!important" in modal_style
+assert ".zs-new-post-tools>button:hover" not in modal_style
 assert "ManagedPostsPage" in web and "PostMedia" in web
 print("Sprint 3 privacy, lifecycle and composer static contracts OK")
