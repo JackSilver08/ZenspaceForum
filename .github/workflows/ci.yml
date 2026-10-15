@@ -13,6 +13,8 @@ jobs:
         with:
           go-version-file: apps/api/go.mod
           cache-dependency-path: apps/api/go.mod
+      - name: Verify Go Docker caching contract
+        run: python3 scripts/check_go_docker_cache.py
       - name: Build and test backend
         working-directory: apps/api
         run: |
