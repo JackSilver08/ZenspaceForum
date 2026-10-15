@@ -256,7 +256,7 @@ assert api("/baiviet/"+str(another))["data"]["isPinned"] is True
 assert api("/nguoidung/trangcanhan/"+str(uid))["data"]["baiViets"][0]["id"] == another
 api(f"/v1/posts/{another}/pin", "DELETE", token=token)
 assert api("/baiviet/"+str(another))["data"]["isPinned"] is False
-api(f"/v1/posts/{another}", "DELETE", token=token)
+api(f"/baiviet/{another}", "DELETE", token=token)
 
 # Missing posts return a safe 404, not a foreign-key 500.
 api("/v1/posts/987654321/bookmark","PUT",token=token,expected=404)
