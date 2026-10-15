@@ -13,7 +13,7 @@ assert "zs-feed-heading" in feed, "Compact editorial heading missing"
 assert "zs-feed-emblem" in feed, "Subtle orbital branding missing"
 assert "zs-post-card" in feed and "zs-composer" in feed, "Required social components missing"
 assert "api('/timkiemnguoidung')" in shell, "Suggestions must come from real API"
-assert "api(following ? '/v1/feed' : '/baiviet'" in feed, "Live feed data integration missing"
+assert "'/v1/feed/public'" in feed and "'/v1/feed'" in feed and "'/baiviet'" in feed, "Live public/personalized feed integration missing"
 assert "lh3.googleusercontent.com/aida-public" not in "\n".join(files), "Remote Stitch demo image URL forbidden"
 assert "24.8k" not in "\n".join(files), "Hard-coded fantasy product stats forbidden"
 print("Stitch visual identity + live API contract OK")
