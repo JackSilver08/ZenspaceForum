@@ -92,7 +92,6 @@ export default function Composer({me,onPosted}){
   {open&&<div className="zs-new-post-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
    <section className="zs-new-post-dialog" role="dialog" aria-modal="true" aria-label="Bài viết mới">
     <header className="zs-new-post-header">
-     <button type="button" className="zs-new-post-cancel" onClick={close} disabled={submitting}>Hủy</button>
      <h2>Bài viết mới</h2>
      <button type="button" className="zs-new-post-close" aria-label="Đóng" onClick={close} disabled={submitting}><X size={20}/></button>
     </header>
