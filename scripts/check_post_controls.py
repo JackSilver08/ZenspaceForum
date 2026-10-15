@@ -16,7 +16,9 @@ assert "MigratePostControls" in (platform/"platform.go").read_text()
 assert "`pinnedAt` datetime DEFAULT NULL" in sql
 for action in ['Chỉnh sửa bài viết','Lưu bài viết','Ẩn khỏi bảng tin của tôi','Ghim trên trang cá nhân','Chuyển vào thùng rác']:
     assert action in menu, "Missing post action: "+action
-assert "PostActionsMenu" in feed and "PostActionsMenu" in main
+# The post detail now shares Feed's PostCard; it no longer imports PostActionsMenu itself.
+detail=Path("apps/web/src/features/comments/PostDetailPage.jsx").read_text()
+assert "PostActionsMenu" in feed and "PostCard" in detail and "PostDetailPage" in main
 assert 'path="/saved"' in main
 assert "onHidden={hiddenPost}" in feed and "Hoàn tác" in feed
 assert "pinnedAt" in (api/"posts.go").read_text()
