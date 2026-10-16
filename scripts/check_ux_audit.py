@@ -43,6 +43,18 @@ assert "Xem bài viết" not in feed, "Avoid redundant link to same post destina
 assert "count > 0 &&" in feed, "Don't render an empty engagement row"
 assert "post.reactions || null" in feed, "Use batched reaction stats"
 
+# Regression guard: CSS imports must precede all normal rules.
+# Vite can build successfully while browsers silently ignore a late @import,
+# leaving the message composer as unstyled native HTML.
+entry_styles = (web / "style.css").read_text(encoding="utf-8")
+assert "@import './styles/chat-composer.css';" in entry_styles
+css_lines = [line.strip() for line in entry_styles.splitlines() if line.strip()]
+last_import = max(i for i, line in enumerate(css_lines) if line.startswith("@import "))
+assert all(not line.startswith("@import ") for line in css_lines[last_import + 1:])
+assert all(line.startswith("@import ") for line in css_lines[:last_import + 1]), (
+    "CSS @imports must be contiguous and appear before selectors/comments."
+)
+
 # Responsive behavior and accessible labels.
 assert "grid-template-columns:minmax(0,700px) minmax(220px,250px)" in css
 assert "@media (max-width:1250px)" in css
