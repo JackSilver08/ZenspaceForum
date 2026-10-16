@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useState} from 'react';
 import { Flag, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
+import { PopupFeedback } from '../../components/ui/PopupProvider';
 
 const labels={spam:'Spam hoặc quảng cáo',harassment:'Quấy rối / bắt nạt',
   hate:'Ngôn từ thù ghét',violence:'Bạo lực hoặc đe dọa',
@@ -22,7 +23,7 @@ export default function ModerationPage({me}) {
     return()=>{active=false};
   },[filter]);
   useEffect(()=>load(),[load]);
-  if(me?.phanQuyen!=='admin')return <p className="zs-safety-page" role="alert">Bạn không có quyền xem khu vực kiểm duyệt.</p>;
+  if(me?.phanQuyen!=='admin')return <p className="zs-safety-page">Bạn không có quyền xem khu vực kiểm duyệt.</p>;
   async function review(id,status) {
     setBusy(id);setError('');
     try {
@@ -39,7 +40,7 @@ export default function ModerationPage({me}) {
       <option value="pending">Chờ xử lý</option><option value="dismissed">Đã bỏ qua</option>
       <option value="actioned">Đã xử lý</option><option value="all">Tất cả</option>
     </select>
-    {error&&<p className="zs-error" role="alert">{error}</p>}
+    <PopupFeedback message={error}/>
     {loading?<p role="status">Đang tải báo cáo...</p>:reports.length===0?<p>Không có báo cáo nào trong mục này.</p>:
       <div className="zs-safety-list">{reports.map(r=><article className="zs-report-card" key={r.id}>
         <div className="zs-report-head"><strong>#{r.id} · {labels[r.reason]||r.reason}</strong>

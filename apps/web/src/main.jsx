@@ -14,9 +14,11 @@ import BlockedUsersPage from './features/safety/BlockedUsersPage.jsx';
 import ModerationPage from './features/safety/ModerationPage.jsx';
 import ManagedPostsPage from './features/feed/ManagedPostsPage.jsx';
 import PostDetailPage from './features/comments/PostDetailPage.jsx';
+import { PopupProvider, PopupFeedback, usePopup } from './components/ui/PopupProvider.jsx';
 function useApi(url,version){const[data,setData]=useState(null),[error,setError]=useState('');useEffect(()=>{if(!url)return;let live=true;api(url, getToken() ? {auth:true}:undefined).then(d=>{if(live){setData(d);setError('')}}).catch(e=>live&&setError(e.message));return()=>{live=false}},[url,version]);return{data,error}}
-function Auth({onAuth}){const[register,setRegister]=useState(false),[user,setUser]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[err,setErr]=useState('');const nav=useNavigate();async function submit(e){e.preventDefault();try{const d=await api(register?'/DangKy':'/DangNhap',{method:'POST',body:register?{username:user,email,password,confirmPassword}:{TenDangNhap:user,MatKhau:password}});saveSession(d);onAuth(d.user);nav('/')}catch(e){setErr(e.message)}}return <form className="card p-4 shadow-sm auth mx-auto" onSubmit={submit}><h2 className="fw-bold">ZenSpace</h2><p className="text-muted">{register?'Tạo tài khoản':'Đăng nhập'}</p>{err&&<div className="alert alert-danger">{err}</div>}<input className="form-control mb-2" placeholder="Tên đăng nhập" value={user} onChange={e=>setUser(e.target.value)} required/>{register&&<input className="form-control mb-2" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>}<input className="form-control mb-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} required/>{register&&<input className="form-control mb-2" type="password" placeholder="Xác nhận mật khẩu" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required/>}<button className="btn btn-primary">{register?'Đăng ký':'Đăng nhập'}</button><button className="btn btn-link" type="button" onClick={()=>setRegister(!register)}>{register?'Đã có tài khoản?':'Chưa có tài khoản?'}</button></form>}
+function Auth({onAuth}){const[register,setRegister]=useState(false),[user,setUser]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirmPassword,setConfirmPassword]=useState(''),[err,setErr]=useState('');const nav=useNavigate();async function submit(e){e.preventDefault();try{const d=await api(register?'/DangKy':'/DangNhap',{method:'POST',body:register?{username:user,email,password,confirmPassword}:{TenDangNhap:user,MatKhau:password}});saveSession(d);onAuth(d.user);nav('/')}catch(e){setErr(e.message)}}return <form className="card p-4 shadow-sm auth mx-auto" onSubmit={submit}><h2 className="fw-bold">ZenSpace</h2><p className="text-muted">{register?'Tạo tài khoản':'Đăng nhập'}</p>{err&&<PopupFeedback message={err}/>}<input className="form-control mb-2" placeholder="Tên đăng nhập" value={user} onChange={e=>setUser(e.target.value)} required/>{register&&<input className="form-control mb-2" type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} required/>}<input className="form-control mb-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} required/>{register&&<input className="form-control mb-2" type="password" placeholder="Xác nhận mật khẩu" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required/>}<button className="btn btn-primary">{register?'Đăng ký':'Đăng nhập'}</button><button className="btn btn-link" type="button" onClick={()=>setRegister(!register)}>{register?'Đã có tài khoản?':'Chưa có tài khoản?'}</button></form>}
 function Profile({ me }) {
+  const { confirm } = usePopup();
   const { id } = useParams();
   const [refresh, setRefresh] = useState(0);
   const [tab, setTab] = useState('posts');
@@ -80,7 +82,7 @@ function Profile({ me }) {
   async function toggleBlock() {
     if (busy || !blockStatus) return;
     const next = !blockStatus.blocked;
-    if (next && !window.confirm('Chặn tài khoản này? Quan hệ theo dõi sẽ bị hủy.')) return;
+    if (next && !await confirm({title:'Chặn tài khoản?',message:'Quan hệ theo dõi sẽ bị hủy.',confirmLabel:'Chặn tài khoản',danger:true})) return;
     setBusy(true); setFeedback('');
     try {
       await api('/v1/users/' + id + '/block', { auth: true, method: next ? 'PUT' : 'DELETE' });
@@ -102,7 +104,7 @@ function Profile({ me }) {
   const visiblePosts = tab === 'media' ? posts.filter(post => Boolean(post.mediaUrl)) : posts;
   const count = followers ?? person?.followers ?? 0;
   return <div className="zs-profile-page">
-    {(feedback || loadError) && <p className="zs-error" role="alert">{feedback || loadError}</p>}
+    <PopupFeedback message={feedback || loadError}/>
     {!person && !loadError && <p className="zs-panel-status" role="status">Đang tải không gian cá nhân...</p>}
     {person && <>
       <section className="zs-profile-hero" aria-label={'Hồ sơ của ' + person.tenDangNhap}>
@@ -186,4 +188,4 @@ function App() {
     </AppShell>
   );
 }
-createRoot(document.getElementById('root')).render(<BrowserRouter><App/></BrowserRouter>);
+createRoot(document.getElementById('root')).render(<BrowserRouter><PopupProvider><App/></PopupProvider></BrowserRouter>);

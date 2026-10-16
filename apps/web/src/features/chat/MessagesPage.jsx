@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, RefreshCw, Search, Send, Sparkles, UserRoundPlus, X } from 'lucide-react';
 import { api, getToken } from '../../api';
+import { PopupFeedback } from '../../components/ui/PopupProvider';
 import { Avatar } from '../../components/layout/AppShell';
 
 function clock(value) {
@@ -223,7 +224,7 @@ export default function MessagesPage({me}) {
             <strong>Tìm một người bạn</strong><p>Nhập ít nhất 2 ký tự để tìm thành viên và bắt đầu cuộc trò chuyện.</p>
           </div>}
           {loadingPeople&&<p role="status" className="zs-messenger-status">Đang tìm thành viên...</p>}
-          {searchError&&<p role="alert" className="zs-messenger-error-inline">{searchError}</p>}
+          <PopupFeedback message={searchError}/>
           {!loadingPeople&&searchTerm.length>=2&&!searchError&&<>
             {visibleInbox.length>0&&<p className="zs-messenger-group-label">Hội thoại hiện có</p>}
             {visibleInbox.map(item=>personRow(item.user,'Tiếp tục trò chuyện',null,String(item.user.id)===peerId,'inbox-'))}
@@ -312,8 +313,6 @@ export default function MessagesPage({me}) {
         <button type="button" onClick={startNew}><MessageSquarePlus size={17}/> Trò chuyện mới</button>
       </div>}
     </section>
-    {error&&<div role="alert" className="zs-messenger-alert"><span>{error}</span>
-      <button type="button" aria-label="Đóng thông báo lỗi" onClick={()=>setError('')}><X size={16}/></button>
-    </div>}
+    <PopupFeedback message={error}/>
   </section>;
 }

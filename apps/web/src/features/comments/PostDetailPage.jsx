@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Heart, MessageCircle, MoreHorizontal, PenLine, Send, 
 import { api, getToken } from '../../api';
 import { Avatar } from '../../components/layout/AppShell';
 import { PostCard } from '../feed/FeedPage';
+import { PopupFeedback, usePopup } from '../../components/ui/PopupProvider';
 
 function formatCommentDate(value) {
   if (!value) return '';
@@ -15,6 +16,7 @@ function formatCommentDate(value) {
 }
 
 function CommentItem({ comment, me, postOwnerId, canReply, onLike, onEdit, onDelete, onReply }) {
+  const { confirm } = usePopup();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.noiDung);
@@ -48,7 +50,7 @@ function CommentItem({ comment, me, postOwnerId, canReply, onLike, onEdit, onDel
   }
   async function remove() {
     setOpen(false);
-    if (!window.confirm('Bạn muốn xóa bình luận này?')) return;
+    if (!await confirm({title:'Xóa bình luận?',message:'Bình luận này sẽ bị xóa và không thể khôi phục.',confirmLabel:'Xóa bình luận',danger:true})) return;
     setWorking(true);
     try { await onDelete(comment.id); }
     finally { setWorking(false); }
@@ -223,7 +225,7 @@ function CommentThread({ postId, post, me }) {
     </form>}
     {!me && canReply && <p className="zs-comments-guest"><Link to="/login">Đăng nhập</Link> để tham gia cuộc trò chuyện.</p>}
     {!canReply && <p className="zs-comment-closed" role="status">Tác giả đã tắt bình luận cho bài viết này.</p>}
-    {error && <p role="alert" className="zs-error">{error}</p>}
+    <PopupFeedback message={error}/>
     {loading ? <p role="status" className="zs-comments-status">Đang tải bình luận...</p>
       : !comments.length ? <div className="zs-comments-empty">
           <MessageCircle size={25}/><p>Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện!</p>
@@ -276,7 +278,7 @@ export default function PostDetailPage({ me }) {
       <p>ZENSPACE / CUỘC TRÒ CHUYỆN</p>
       <h1>Chi tiết bài viết</h1>
     </header>
-    {error && <p className="zs-error" role="alert">{error}</p>}
+    <PopupFeedback message={error}/>
     {loading && <p className="zs-comments-status" role="status">Đang tải bài viết...</p>}
     {post && <>
       <PostCard post={post} me={me} selectedReaction={reaction} reactionLoading={reactionLoading}

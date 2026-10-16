@@ -33,7 +33,7 @@ composer = (web / "features/feed/Composer.jsx").read_text(encoding="utf-8")
 assert "useState(false)" in composer, "Composer should be collapsed initially"
 assert "zenspace:compose" in app and "zenspace:compose" in composer
 assert "beforeunload" in composer and "guardNavigation" in composer, "Guard user drafts on reload and in-app navigation"
-assert "window.confirm" in composer, "Confirm when abandoning a draft"
+assert "await confirm(" in composer and "navigate(destination.pathname" in composer, "Custom popup must guard in-app navigation"
 assert 'form.append(' not in composer, "Keep the FormData integration contract updated"
 assert "payload.append('noiDung'" in composer and "tieuDe" not in composer
 

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CornerDownLeft, Search, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
+import { PopupFeedback } from '../../components/ui/PopupProvider';
 
 export default function SearchPalette({ open, onClose, Avatar, me }) {
   const navigate = useNavigate();
@@ -118,7 +119,7 @@ export default function SearchPalette({ open, onClose, Avatar, me }) {
         <p className="zs-search-section-label">{term.length >= 2 ? 'KẾT QUẢ TÌM KIẾM' : 'GỢI Ý KẾT NỐI'}</p>
         {query.trim().length === 1 && <p className="zs-search-message">Nhập ít nhất 2 ký tự để tìm thành viên.</p>}
         {loading && <p className="zs-search-message" role="status">Đang tìm kiếm...</p>}
-        {error && <p className="zs-search-message zs-search-error" role="alert">Không thể tìm thành viên: {error}</p>}
+        <PopupFeedback message={error ? "Không thể tìm thành viên: " + error : ""}/>
         {!loading && !error && query.trim().length !== 1 && (
           results.length ? results.map((person, index) =>
             <button type="button" key={person.id} role="option" id={'zs-search-option-' + person.id}

@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, EyeOff, Flag, MessageSquareOff, MessageSquareText, MoreHorizontal, PenLine, Pin, PinOff, ShieldBan, ShieldCheck, Trash2, X, Archive, History, Globe } from 'lucide-react';
 import { api } from '../../api';
+import { PopupFeedback, usePopup } from '../../components/ui/PopupProvider';
 
 export default function PostActionsMenu({
   post, me, saved: externallySaved, onSavedChange, onHidden, onChanged, onDeleted,
 }) {
+  const { confirm } = usePopup();
   const [open,setOpen] = useState(false);
   const [editing,setEditing] = useState(false);
   const [historyOpen,setHistoryOpen] = useState(false);
@@ -71,8 +73,8 @@ export default function PostActionsMenu({
     catch(err){setError(err.message || 'Không thực hiện được thao tác.');}
     finally{setBusy(false);}
   }
-  function cancelEdit(){
-    if(draft!==post.noiDung && !window.confirm('Bỏ nội dung đang chỉnh sửa?'))return;
+  async function cancelEdit(){
+    if(draft!==post.noiDung && !await confirm({title:'Bỏ chỉnh sửa?',message:'Những thay đổi chưa lưu sẽ bị mất.',confirmLabel:'Bỏ thay đổi',danger:true}))return;
     setEditing(false);setError('');
   }
   async function updatePost(e){
@@ -130,14 +132,14 @@ export default function PostActionsMenu({
     catch(err){setError(err.message)}
   }
   async function restoreHistory(revision){
-    if(!window.confirm('Khôi phục nội dung từ phiên bản này?'))return;
+    if(!await confirm({title:'Khôi phục phiên bản?',message:'Nội dung hiện tại sẽ được thay bằng phiên bản đã chọn.',confirmLabel:'Khôi phục'}))return;
     await execute(()=>api('/v1/posts/'+id+'/revisions/'+revision+'/restore',{method:'POST',auth:true}),()=>{
       setHistoryOpen(false);onChanged?.();
     });
   }
   async function remove(){
     setOpen(false);
-    if(!window.confirm('Chuyển bài viết vào thùng rác trong 30 ngày?'))return;
+    if(!await confirm({title:'Chuyển vào thùng rác?',message:'Bài viết được lưu trong thùng rác 30 ngày trước khi xóa vĩnh viễn.',confirmLabel:'Chuyển vào thùng rác',danger:true}))return;
     await execute(()=>api('/baiviet/'+id,{method:'DELETE',auth:true}),()=>onDeleted?.());
   }
 
@@ -205,7 +207,7 @@ export default function PostActionsMenu({
           <textarea id={'zs-edit-content-'+id} value={draft} onChange={e=>setDraft(e.target.value)}
             rows={7} maxLength={10000} required autoFocus/>
           <small>{[...draft].length.toLocaleString('vi-VN')} / 10.000 ký tự · Ảnh/video hiện tại được giữ nguyên.</small>
-          {error && <p className="zs-error" role="alert">{error}</p>}
+          <PopupFeedback message={error}/>
           <footer>
             <button type="button" className="zs-control-secondary" onClick={cancelEdit} disabled={busy}>Hủy</button>
             <button type="submit" className="zs-control-primary" disabled={busy || !draft.trim() || draft===post.noiDung}>
@@ -225,7 +227,7 @@ export default function PostActionsMenu({
            <strong>Phiên bản {item.revision}</strong><p>{item.content}</p>
            <button type="button" disabled={busy} onClick={()=>restoreHistory(item.revision)}>Khôi phục phiên bản này</button>
          </div>)}
-        {error&&<p className="zs-error" role="alert">{error}</p>}
+        <PopupFeedback message={error}/>
       </section>
     </div>}
     {reporting && <div className="zs-edit-overlay" role="presentation"
@@ -256,6 +258,6 @@ export default function PostActionsMenu({
       </section>
     </div>}
     {reported && <span className="zs-control-success" role="status">Báo cáo đã được chuyển đến quản trị viên.</span>}
-    {!editing && error && <span className="zs-control-inline-error" role="alert">{error}</span>}
+    {!editing && <PopupFeedback message={error}/>}
   </>;
 }

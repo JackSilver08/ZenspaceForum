@@ -329,8 +329,8 @@ test('Sprint 3: minimal composer, privacy, edit history, archive and trash on de
   await page.goto('/');
   await expect(row).toBeVisible();
   await menu().click();
-  page.once('dialog',d=>d.accept());
   await row.getByRole('button',{name:'Chuyển vào thùng rác'}).click();
+  await page.getByRole('dialog',{name:'Chuyển vào thùng rác?'}).getByRole('button',{name:'Chuyển vào thùng rác'}).click();
   await expect(row).toHaveCount(0);
   await page.goto('/trash');
   const trashed=page.locator('.zs-managed-post').filter({hasText:content});

@@ -6,6 +6,7 @@ import {
   Share2, Sparkles, X
 } from 'lucide-react';
 import { api } from '../../api';
+import { PopupFeedback } from '../../components/ui/PopupProvider';
 import { Avatar } from '../../components/layout/AppShell';
 import PostActionsMenu from './PostActionsMenu.jsx';
 import Composer from './Composer.jsx';
@@ -131,7 +132,7 @@ function PostCard({ post, me, onDelete, onHidden, saved, onSavedChange, selected
         <Link className="zs-post-action" to={`/posts/${id}`}><MessageCircle size={18}/> Bình luận</Link>
         <button className="zs-post-action" type="button" onClick={share}>{copied ? <Check size={18}/> : <Share2 size={18}/>} {copied ? 'Đã sao chép' : 'Chia sẻ'}</button>
       </div>
-      {feedback && <p className="zs-error zs-post-error" role="alert">{feedback}</p>}
+      <PopupFeedback message={feedback}/>
     </article>
   );
 }
@@ -253,9 +254,9 @@ export default function FeedPage({me, feedMode = 'community'}) {
       <span>Đã ẩn bài khỏi bảng tin của bạn.</span>
       <button type="button" onClick={undoHide}>Hoàn tác</button>
     </div>}
-    {reactionError && <p className="zs-error" role="alert">{reactionError}</p>}
+    <PopupFeedback message={reactionError}/>
     {loading ? <LoadingFeed/> : error ? <div className="zs-feed-empty">
-      <h3>Không thể tải bài viết</h3><p role="alert">{error}</p>
+      <h3>Không thể tải bài viết</h3><p>{error}</p><PopupFeedback message={error}/>
       <button type="button" className="zs-outline-button" onClick={reload}>Thử lại <RefreshCw size={15}/></button>
     </div> : posts.length ? <div className="zs-post-list">
       {posts.map(post=><PostCard key={post.id} post={post} me={me}

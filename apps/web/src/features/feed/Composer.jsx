@@ -2,6 +2,8 @@ import React,{useEffect,useRef,useState} from 'react';
 import { ImagePlus, Smile, MoreHorizontal, Globe, Users, Lock, X, ChevronDown, MessageCircle } from 'lucide-react';
 import { api } from '../../api';
 import { Avatar } from '../../components/layout/AppShell';
+import { useNavigate } from 'react-router-dom';
+import { PopupFeedback, usePopup } from '../../components/ui/PopupProvider';
 
 const visibilityOptions=[
  {value:'public',label:'Công khai',icon:Globe},
@@ -10,10 +12,12 @@ const visibilityOptions=[
 ];
 const emojiOptions=['💜','✨','😊','🌙','🌌','🚀','⭐','🌸'];
 export default function Composer({me,onPosted}){
+ const {confirm,notify} = usePopup();
+ const navigate = useNavigate();
  const [open,setOpen]=useState(false),[body,setBody]=useState(''),[file,setFile]=useState(null);
  const [visibility,setVisibility]=useState('public'),[commentsEnabled,setCommentsEnabled]=useState(true);
  const [preview,setPreview]=useState(''),[emojiOpen,setEmojiOpen]=useState(false),[moreOpen,setMoreOpen]=useState(false);
- const [error,setError]=useState(''),[notice,setNotice]=useState(''),[submitting,setSubmitting]=useState(false);
+ const [error,setError]=useState(''),[submitting,setSubmitting]=useState(false);
  const input=useRef(null),picker=useRef(null);const dirty=Boolean(body.trim()||file);
  useEffect(()=>{
   if(!file||!file.type.startsWith('image/')){setPreview('');return}
@@ -36,9 +40,10 @@ export default function Composer({me,onPosted}){
    const anchor=e.target instanceof Element?e.target.closest('a[href]'):null;
    if(!anchor||anchor.target==='_blank')return;
    const destination=new URL(anchor.href,window.location.href);
-   if(destination.origin===window.location.origin&&destination.pathname!==window.location.pathname
-     &&!window.confirm('Bạn có bài viết chưa đăng. Rời trang và bỏ nội dung này?')){
+   if(destination.origin===window.location.origin&&destination.pathname!==window.location.pathname){
     e.preventDefault();e.stopPropagation();
+    confirm({title:'Rời trang khi chưa đăng?',message:'Bản nháp của bạn sẽ bị mất nếu tiếp tục.',confirmLabel:'Rời trang',danger:true})
+      .then(accepted=>{if(accepted)navigate(destination.pathname+destination.search+destination.hash);});
    }
   };
   window.addEventListener('keydown',onKey);
@@ -47,10 +52,10 @@ export default function Composer({me,onPosted}){
   return()=>{window.removeEventListener('keydown',onKey);window.removeEventListener('beforeunload',onUnload);
    document.removeEventListener('click',guardNavigation,true)}
  // close intentionally reads the latest dirty state through fresh effect registration.
- },[open,dirty,submitting]);
- function close(){
+ },[open,dirty,submitting,confirm,navigate]);
+ async function close(){
   if(submitting)return;
-  if(dirty&&!window.confirm('Bỏ nội dung bài viết chưa đăng?'))return;
+  if(dirty&&!await confirm({title:'Bỏ bản nháp?',message:'Nội dung bài viết chưa đăng sẽ bị mất.',confirmLabel:'Bỏ bản nháp',danger:true}))return;
   setOpen(false);setError('');setEmojiOpen(false);setMoreOpen(false);
  }
  function onFile(e){
@@ -72,7 +77,7 @@ export default function Composer({me,onPosted}){
    await api('/baiviet',{method:'POST',auth:true,body:payload});
    setBody('');setFile(null);setVisibility('public');setCommentsEnabled(true);
    if(picker.current)picker.current.value='';
-   setOpen(false);setNotice('Đã đăng bài thành công.');onPosted?.();
+   setOpen(false);notify('Đã đăng bài thành công.','success');onPosted?.();
   }catch(e){setError(e.message||'Không đăng được bài.')}
   finally{setSubmitting(false)}
  }
@@ -88,7 +93,7 @@ export default function Composer({me,onPosted}){
     Bạn đang nghĩ gì?
    </button>
   </div>
-  {notice&&<p role="status" className="zs-success">{notice}</p>}
+
   {open&&<div className="zs-new-post-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
    <section className="zs-new-post-dialog" role="dialog" aria-modal="true" aria-label="Bài viết mới">
     <header className="zs-new-post-header">
@@ -117,7 +122,7 @@ export default function Composer({me,onPosted}){
       <button type="button" aria-label="Bỏ tệp đính kèm" onClick={()=>{setFile(null);if(picker.current)picker.current.value=''}}><X size={17}/></button>
      </div>}
      {body.length>9000&&<p className="zs-new-post-count">{[...body].length} / 10.000</p>}
-     {error&&<p className="zs-error" role="alert">{error}</p>}
+     <PopupFeedback message={error}/>
      <div className="zs-new-post-footer">
       <div className="zs-new-post-tools">
        <button type="button" title="Ảnh hoặc video" aria-label="Thêm ảnh hoặc video" onClick={()=>picker.current?.click()} disabled={submitting}><ImagePlus size={21}/></button>

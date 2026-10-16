@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import { ShieldCheck, ShieldX } from 'lucide-react';
 import { api } from '../../api';
+import { PopupFeedback } from '../../components/ui/PopupProvider';
 
 export default function BlockedUsersPage() {
   const [users,setUsers]=useState([]);
@@ -25,7 +26,7 @@ export default function BlockedUsersPage() {
     <p className="zs-feed-eyebrow">ZENSPACE / AN TOÀN CỘNG ĐỒNG</p>
     <h1><ShieldX size={26}/> Tài khoản đã chặn</h1>
     <p>Những tài khoản này không thể tương tác với bạn. Các bài công khai vẫn có thể truy cập khi không đăng nhập.</p>
-    {error&&<p className="zs-error" role="alert">{error}</p>}
+    <PopupFeedback message={error}/>
     {loading?<p role="status">Đang tải danh sách...</p>:users.length===0?<p>Chưa có tài khoản nào bị chặn.</p>:
       <div className="zs-safety-list">{users.map(u=><div className="zs-safety-item" key={u.id}>
         <span>{u.tenDangNhap}</span><button type="button" disabled={busy===u.id} onClick={()=>unblock(u.id)}>
