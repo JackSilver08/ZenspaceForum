@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, Search, Sparkles, UserRoundPlus, X } from 'lucide-react';
 import { api, getToken } from '../../api';
@@ -49,6 +49,11 @@ export default function MessagesPage({me}) {
   const [historyTick,setHistoryTick] = useState(0);
   const [socketState,setSocketState] = useState('connecting');
   const [viewingMediaId,setViewingMediaId] = useState(null);
+  const [galleryMedia,setGalleryMedia] = useState([]);
+  const [galleryNext,setGalleryNext] = useState(0);
+  const [galleryHasMore,setGalleryHasMore] = useState(false);
+  const [galleryLoading,setGalleryLoading] = useState(false);
+  const galleryBusy=useRef(false);
   const currentPeer=useRef(peerId);
   currentPeer.current=peerId;
   const searchRef=useRef(null);
@@ -185,10 +190,48 @@ export default function MessagesPage({me}) {
     }catch(err){setError(err.message);return false;}
     finally{setSending(false);}
   }
-  const conversationMedia=useMemo(()=>messages.flatMap(message=>
-    (message.attachments?.length ? message.attachments : message.attachment?[message.attachment]:[])
-      .filter(file=>file.kind==='image'||file.kind==='video')
-  ),[messages]);
+  // The chat panel loads 200 messages. A separate paginated gallery fetches
+  // older images/videos without downloading the entire message history.
+  useEffect(()=>{
+    if(viewingMediaId===null||!peerId)return;
+    let alive=true;
+    galleryBusy.current=true;
+    setGalleryMedia([]);setGalleryNext(0);setGalleryHasMore(false);setGalleryLoading(true);
+    api('/chat/media/'+peerId,{auth:true})
+      .then(res=>{
+        if(!alive)return;
+        setGalleryMedia(Array.isArray(res.data)?res.data:[]);
+        setGalleryNext(Number(res.nextCursor)||0);
+        setGalleryHasMore(Boolean(res.hasMore));
+      }).catch(err=>{if(alive)setError(err.message);})
+      .finally(()=>{if(alive){galleryBusy.current=false;setGalleryLoading(false);}});
+    return ()=>{alive=false;galleryBusy.current=false;};
+  },[peerId,viewingMediaId]);
+
+  const loadMoreMedia=useCallback(async()=>{
+    if(!peerId||!galleryHasMore||!galleryNext||galleryBusy.current)return;
+    galleryBusy.current=true;
+    setGalleryLoading(true);
+    try{
+      const res=await api('/chat/media/'+peerId+'?before='+galleryNext,{auth:true});
+      setGalleryMedia(previous=>[...previous,...(Array.isArray(res.data)?res.data:[])]);
+      setGalleryNext(Number(res.nextCursor)||0);
+      setGalleryHasMore(Boolean(res.hasMore));
+    }catch(err){setError(err.message);}
+    finally{galleryBusy.current=false;setGalleryLoading(false);}
+  },[peerId,galleryHasMore,galleryNext]);
+
+  const conversationMedia=useMemo(()=>{
+    const result=new Map();
+    for(const message of messages){
+      const files=message.attachments?.length?message.attachments:message.attachment?[message.attachment]:[];
+      for(const file of files){
+        if(file.kind==='image'||file.kind==='video')result.set(file.id,file);
+      }
+    }
+    for(const file of galleryMedia)result.set(file.id,file);
+    return [...result.values()].sort((a,b)=>Number(a.id)-Number(b.id));
+  },[messages,galleryMedia]);
   const visibleInbox=inbox.filter(item=>!query.trim()||
     item.user.tenDangNhap.toLocaleLowerCase('vi').includes(query.trim().toLocaleLowerCase('vi')));
   const known=new Set(inbox.map(item=>Number(item.user.id)));
@@ -314,6 +357,7 @@ export default function MessagesPage({me}) {
     <PopupFeedback message={error}/>
     {viewingMediaId!==null&&conversationMedia.length>0&&
       <ChatMediaViewer media={conversationMedia} selectedId={viewingMediaId}
+        hasMore={galleryHasMore} loadingMore={galleryLoading} onLoadMore={loadMoreMedia}
         onClose={()=>setViewingMediaId(null)}/>}
   </section>;
 }

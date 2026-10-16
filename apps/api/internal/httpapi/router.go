@@ -161,6 +161,7 @@ func (a *App) Router() *gin.Engine {
     secured.GET("/chat/attachments/:id/preview", a.getChatAttachmentPreview)
     secured.GET("/chat/lichsu/:id1/:id2", a.chatHistory)
     secured.GET("/chat/inbox", a.chatInbox)
+    secured.GET("/chat/media/:peerId", a.chatMediaHistory)
     secured.GET("/v1/feed/public", a.personalizedPublicFeed)
     secured.GET("/v1/feed", a.feed)
     secured.GET("/v1/posts/my-state", a.myPostState)

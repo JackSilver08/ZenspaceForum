@@ -48,7 +48,7 @@ export default function ChatAttachment({attachment,attachments,onOpen}) {
   const media=files.filter(file=>file.kind==='image'||file.kind==='video');
   const rest=files.filter(file=>file.kind!=='image'&&file.kind!=='video');
   return <div className="zs-chat-attachment">
-    {media.length>0&&<div className={'zs-chat-media-grid'+(media.length===1?' is-single':media.length>4?' is-many':'')}
+    {media.length>0&&<div className={'zs-chat-media-grid'+(media.length===1?' is-single':media.length===3?' is-trio':media.length>4?' is-many':'')}
       aria-label={media.length+' ảnh hoặc video'}>
       {media.map(file=><ChatMediaThumb key={file.id} attachment={file}
         onClick={()=>onOpen?.(file.id)}/>)}
