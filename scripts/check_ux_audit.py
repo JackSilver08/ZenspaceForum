@@ -11,9 +11,15 @@ feed = (web / "features/feed/FeedPage.jsx").read_text(encoding="utf-8")
 main = (web / "main.jsx").read_text(encoding="utf-8")
 css = (web / "styles/ux-audit.css").read_text(encoding="utf-8")
 
-# Page IA – Following is a destination, not a duplicate tab of Explore.
-assert 'to: \'/following\'' in app and 'to: \'/explore\'' in app
+# Compact IA: primary sidebar, bottom Settings Hub and keyboard search.
+settings = (web / "features/settings/SettingsHub.jsx").read_text(encoding="utf-8")
+palette = (web / "features/search/SearchPalette.jsx").read_text(encoding="utf-8")
+assert "to: '/'" in app and "to: '/messages'" in app
+assert "to: '/explore'" not in app and "zs-sidebar-settings" in app
+assert 'path="/settings"' in main and "SettingsHub" in main
 assert 'path="/following"' in main and 'feedMode="following"' in main
+assert "to: '/following'" in settings and "to: '/saved'" in settings and "to: '/archive'" in settings
+assert "event.ctrlKey || event.metaKey" in app and "aria-modal" in palette
 assert 'zs-feed-tabs' not in feed, "Remove ambiguous redundant feed tabs"
 
 # Prioritize content over brand decoration and remove purely ornamental widgets.

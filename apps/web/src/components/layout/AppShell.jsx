@@ -1,22 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
-  ArrowRight, Compass, Home, LogIn, LogOut, MessageCircle,
-  PenLine, Search, UserRound, Users, Orbit, ChevronDown, Bookmark, ShieldBan, Flag, Archive, Trash2
+  ArrowRight, Home, LogIn, LogOut, MessageCircle,
+  PenLine, Search, UserRound, Orbit, ChevronDown, Settings
 } from 'lucide-react';
+import SearchPalette from '../../features/search/SearchPalette.jsx';
 import { api } from '../../api';
 
 const links = [
   { to: '/', label: 'Bảng tin', icon: Home, end: true },
-  { to: '/following', label: 'Đang theo dõi', icon: Users, private: true },
-  { to: '/saved', label: 'Đã lưu', icon: Bookmark, private: true },
-  { to: '/archive', label: 'Lưu trữ', icon: Archive, private: true, mobile: false },
-  { to: '/trash', label: 'Thùng rác', icon: Trash2, private: true, mobile: false },
-  { to: '/blocked', label: 'Đã chặn', icon: ShieldBan, private: true, mobile: false },
-  { to: '/moderation', label: 'Kiểm duyệt', icon: Flag, admin: true, mobile: false },
-  { to: '/explore', label: 'Khám phá', icon: Compass },
   { to: '/messages', label: 'Tin nhắn', icon: MessageCircle, private: true },
 ];
+const settingsRoutes = new Set(['/settings', '/following', '/saved', '/archive', '/trash', '/blocked', '/moderation']);
 
 function Avatar({ name, avatar, size = 'normal' }) {
   const fallback = String(name || 'Z').trim().slice(0, 2).toUpperCase();
@@ -37,8 +32,9 @@ function Brand() {
   </Link>;
 }
 
-function NavigationLink({ to, label, icon: Icon, end = false }) {
-  return <NavLink to={to} end={end} aria-label={label} title={label} className={({isActive}) => 'zs-nav-item' + (isActive ? ' is-active' : '')}>
+function NavigationLink({ to, label, icon: Icon, end = false, forceActive = false }) {
+  return <NavLink to={to} end={end} aria-label={label} title={label}
+    className={({isActive}) => 'zs-nav-item' + (isActive || forceActive ? ' is-active' : '')}>
     <Icon size={19} strokeWidth={1.8} aria-hidden="true"/>
     <span>{label}</span>
   </NavLink>;
@@ -67,7 +63,7 @@ function AccountMenu({ me, onLogout }) {
   </div>;
 }
 
-function CommunitySuggestions({ me }) {
+function CommunitySuggestions({ me, onSearch }) {
   const [members, setMembers] = useState([]);
   const [status, setStatus] = useState('loading');
   useEffect(() => {
@@ -96,7 +92,9 @@ function CommunitySuggestions({ me }) {
         <span>{person.tenDangNhap}</span><ArrowRight size={16} aria-hidden="true"/>
       </Link>)}
     </div>
-    <Link to="/explore" className="zs-suggest-explore">Tìm thêm thành viên <ArrowRight size={16} aria-hidden="true"/></Link>
+    <button type="button" className="zs-suggest-explore" onClick={onSearch}>
+      Tìm thêm thành viên <ArrowRight size={16} aria-hidden="true"/>
+    </button>
   </section>;
 }
 
@@ -104,12 +102,30 @@ export default function AppShell({ me, onLogout, children }) {
   const location = useLocation();
   const showSuggestions = location.pathname === '/' || location.pathname === '/following';
   const isMessages = location.pathname === '/messages';
+  const isSettingsSection = settingsRoutes.has(location.pathname);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  useEffect(() => {
+    setSearchOpen(Boolean(location.state?.openSearch));
+  }, [location.key]);
+  useEffect(() => {
+    function shortcut(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        openSearch();
+      }
+    }
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [openSearch]);
   return <div className={isMessages ? 'zs-app zs-app--messages' : 'zs-app'}>
     <header className="zs-topbar">
       <Brand/>
-      <Link to="/explore" className="zs-topbar-search" aria-label="Tìm kiếm thành viên">
-        <Search size={17}/><span>Tìm kiếm thành viên...</span>
-      </Link>
+      <button type="button" className="zs-topbar-search" aria-label="Tìm kiếm thành viên"
+        aria-keyshortcuts="Control+K Meta+K" aria-haspopup="dialog" aria-expanded={searchOpen} onClick={openSearch}>
+        <Search size={17}/><span>Tìm kiếm thành viên...</span><kbd>Ctrl K</kbd>
+      </button>
       <div className="zs-topbar-actions">
         {me && <Link to="/#compose" className="zs-topbar-write"
           onClick={() => {window.dispatchEvent(new Event('zenspace:compose'));requestAnimationFrame(()=>document.getElementById('compose')?.scrollIntoView({block:'center',behavior:'smooth'}));}}>
@@ -124,7 +140,10 @@ export default function AppShell({ me, onLogout, children }) {
         <nav className="zs-side-nav" aria-label="Điều hướng">
           {links.filter(item => (!item.private || me) && (!item.admin || me?.phanQuyen==='admin')).map(item=><NavigationLink key={item.to} {...item}/>)}
         </nav>
-        <div className="zs-sidebar-footer">ZENSPACE <span>✦</span> 2026</div>
+        <div className="zs-sidebar-settings">
+          <NavigationLink to={me ? '/settings' : '/login'} label="Cài đặt" icon={Settings}
+            forceActive={isSettingsSection}/>
+        </div>
       </aside>
       <div className="zs-content-area">
         {isMessages
@@ -132,14 +151,19 @@ export default function AppShell({ me, onLogout, children }) {
           : <div className={showSuggestions ? "zs-layout" : "zs-layout zs-layout--wide"}>
               <main id="main-content" className="zs-main">{children}</main>
               {showSuggestions && <aside className="zs-right-sidebar" aria-label="Gợi ý thành viên">
-                <CommunitySuggestions me={me}/>
+                <CommunitySuggestions me={me} onSearch={openSearch}/>
               </aside>}
             </div>}
       </div>
     </div>
     <nav className="zs-mobile-nav" aria-label="Điều hướng trên điện thoại">
-      {links.filter(item => item.mobile !== false && (!item.private || me) && (!item.admin || me?.phanQuyen==='admin')).map(item=><NavigationLink key={item.to} {...item}/>)}
+      {links.filter(item => (!item.private || me)).map(item=><NavigationLink key={item.to} {...item}/>)}
+      <button type="button" className="zs-nav-item zs-mobile-search" aria-label="Tìm kiếm"
+        aria-haspopup="dialog" onClick={openSearch}><Search size={19}/><span>Tìm kiếm</span></button>
+      <NavigationLink to={me ? '/settings' : '/login'} label="Cài đặt" icon={Settings}
+        forceActive={isSettingsSection}/>
     </nav>
+    <SearchPalette open={searchOpen} onClose={closeSearch} Avatar={Avatar} me={me}/>
   </div>;
 }
 export { Avatar };

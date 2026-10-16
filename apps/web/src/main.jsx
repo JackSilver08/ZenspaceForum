@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useParams, useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './style.css';
 import { api, getUser, getToken, saveSession, logout } from './api';
@@ -8,7 +8,8 @@ import AppShell from './components/layout/AppShell.jsx';
 import { Avatar } from './components/layout/AppShell.jsx';
 import FeedPage, { PostCard } from './features/feed/FeedPage.jsx';
 import MessagesPage from './features/chat/MessagesPage.jsx';
-import { UserPlus, MessageCircle, Layers, Images, Orbit, Search, ArrowRight } from 'lucide-react';
+import SettingsHub from './features/settings/SettingsHub.jsx';
+import { UserPlus, MessageCircle, Layers, Images, Orbit } from 'lucide-react';
 import BlockedUsersPage from './features/safety/BlockedUsersPage.jsx';
 import ModerationPage from './features/safety/ModerationPage.jsx';
 import ManagedPostsPage from './features/feed/ManagedPostsPage.jsx';
@@ -156,60 +157,6 @@ function Profile({ me }) {
     </>}
   </div>;
 }
-function Explore() {
-  const [query, setQuery] = useState('');
-  const [term, setTerm] = useState('');
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => setTerm(query.trim()), 300);
-    return () => window.clearTimeout(handle);
-  }, [query]);
-  useEffect(() => {
-    let live = true;
-    setLoading(true); setError('');
-    const url = term.length >= 2 ? '/timkiemnguoidung?key=' + encodeURIComponent(term) : '/timkiemnguoidung';
-    api(url)
-      .then(result => { if (live) setMembers(Array.isArray(result.data) ? result.data : []); })
-      .catch(err => { if (live) setError(err.message); })
-      .finally(() => { if (live) setLoading(false); });
-    return () => { live = false; };
-  }, [term]);
-  const shown = query.trim().length === 1
-    ? members.filter(person => person.tenDangNhap?.toLowerCase().includes(query.trim().toLowerCase()))
-    : members;
-  return <div className="zs-explore-page">
-    <header className="zs-explore-heading">
-      <p className="zs-profile-eyebrow">ZENSPACE / KHÁM PHÁ</p>
-      <h1>Khám phá thành viên</h1>
-      <p>Kết nối với những người bạn muốn đồng hành.</p>
-    </header>
-    <div className="zs-explore-search">
-      <Search size={20} aria-hidden="true"/>
-      <label className="visually-hidden" htmlFor="zs-explore-query">Tìm kiếm thành viên</label>
-      <input id="zs-explore-query" type="search" value={query} onChange={event => setQuery(event.target.value)}
-        placeholder="Tìm thành viên theo tên..." autoComplete="off" />
-    </div>
-    {loading && <p className="zs-panel-status" role="status">Đang tìm kiếm thành viên...</p>}
-    {error && <p className="zs-error" role="alert">Không tải được danh sách thành viên: {error}</p>}
-    {!loading && !error && <>
-      <h2 className="zs-explore-section-title">{query.trim() ? 'Kết quả tìm kiếm' : 'Thành viên cộng đồng'}</h2>
-      {shown.length ? <div className="zs-member-grid">
-        {shown.map(person => <article className="zs-member-card" key={person.id}>
-          <div className="zs-member-avatar"><Avatar name={person.tenDangNhap} avatar={person.avatar} size="large"/></div>
-          <div className="zs-member-info">
-            <h3><Link to={'/users/' + person.id}>{person.tenDangNhap}</Link></h3>
-            <p>Thành viên ZenSpace</p>
-          </div>
-          <Link className="zs-member-action" to={'/users/' + person.id}>Xem hồ sơ <ArrowRight size={15}/></Link>
-        </article>)}
-      </div> : <div className="zs-nebula-empty"><Search size={29} aria-hidden="true"/>
-        <h2>Không tìm thấy thành viên</h2><p>Hãy thử một tên khác để khám phá cộng đồng.</p></div>}
-    </>}
-  </div>;
-}
 function App() {
   const [me, setMe] = useState(getUser());
   const navigate = useNavigate();
@@ -231,7 +178,8 @@ function App() {
         <Route path="/login" element={<Auth onAuth={setMe} />} />
         <Route path="/posts/:id" element={<PostDetailPage me={me} />} />
         <Route path="/users/:id" element={<Profile me={me} />} />
-        <Route path="/explore" element={<Explore />} />
+        <Route path="/settings" element={me ? <SettingsHub me={me}/> : <Auth onAuth={setMe}/>} />
+        <Route path="/explore" element={<Navigate to="/" replace state={{openSearch:true}}/>} />
         <Route path="/messages" element={me ? <MessagesPage me={me} /> : <Auth onAuth={setMe} />} />
         <Route path="*" element={<div className="zs-not-found"><h2>Lạc giữa những vì sao?</h2><p>Trang bạn tìm không tồn tại.</p><Link to="/">Quay về bảng tin →</Link></div>} />
       </Routes>

@@ -15,10 +15,13 @@ test('home feed mounts React and loads real MySQL posts', async ({ page }) => {
   expect(errors, 'No uncaught browser runtime errors, including undefined JSX icons').toEqual([]);
 });
 
-test('Explore and Login routes render without JavaScript exceptions', async ({ page }) => {
+test('Legacy Explore deep link opens Search Palette and Login still renders', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/explore');
-  await expect(page.getByRole('heading', { name: 'Khám phá thành viên' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('dialog', { name: 'Khám phá ZenSpace' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Khám phá ZenSpace' })).toHaveCount(0);
   await page.goto('/login');
   await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true }).first()).toBeVisible();
   expect(errors).toEqual([]);
@@ -412,12 +415,13 @@ test('Post media stays inside Feed and Profile cards for portrait and landscape 
   }
 });
 
-test('Nebula Pearl member discovery opens a real profile with post and media tabs', async ({ page }) => {
-  await page.goto('/explore');
-  await expect(page.getByRole('heading', { name: 'Khám phá thành viên' })).toBeVisible();
-  const member = page.locator('.zs-member-card').first();
+test('Nebula Pearl palette opens a real profile with post and media tabs', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Tìm kiếm thành viên' }).click();
+  await expect(page.getByRole('dialog', { name: 'Khám phá ZenSpace' })).toBeVisible();
+  const member = page.getByRole('option').first();
   await expect(member).toBeVisible();
-  await member.getByRole('link', { name: 'Xem hồ sơ' }).click();
+  await member.click();
   await expect(page.locator('.zs-profile-hero')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bài viết' })).toBeVisible();
   const mediaTab = page.getByRole('button', { name: 'Ảnh & video' });

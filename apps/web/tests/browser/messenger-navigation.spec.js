@@ -43,8 +43,8 @@ for (const viewport of [
     await nav.locator('a[href="/messages"]').click();
     await checkMessenger();
 
-    await nav.locator('a[href="/explore"]').click();
-    await expect(page).toHaveURL(/\/explore$/);
+    await nav.locator('a[href="/"]').click();
+    await expect(page).toHaveURL(/\/$/);
     await expect(page.locator('.zs-layout')).toBeVisible();
     await expect(page.locator('.zs-main--messages')).toHaveCount(0);
     expect(await page.evaluate(()=>window.__chatRouteMarker)).toBe('no-document-reload');
