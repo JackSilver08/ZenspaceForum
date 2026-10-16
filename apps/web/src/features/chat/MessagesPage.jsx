@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, Search, Sparkles, UserRoundPlus, X } from 'lucide-react';
 import { api, getToken } from '../../api';
 import { PopupFeedback } from '../../components/ui/PopupProvider';
 import ChatComposer from './ChatComposer';
 import ChatAttachment from './ChatAttachment';
+import ChatMediaViewer from './ChatMediaViewer';
 import { Avatar } from '../../components/layout/AppShell';
 
 function clock(value) {
@@ -47,6 +48,7 @@ export default function MessagesPage({me}) {
   const [inboxTick,setInboxTick] = useState(0);
   const [historyTick,setHistoryTick] = useState(0);
   const [socketState,setSocketState] = useState('connecting');
+  const [viewingMediaId,setViewingMediaId] = useState(null);
   const currentPeer=useRef(peerId);
   currentPeer.current=peerId;
   const searchRef=useRef(null);
@@ -79,6 +81,7 @@ export default function MessagesPage({me}) {
   useEffect(()=>{
     setPeer(null);
     setMessages([]);
+    setViewingMediaId(null);
   },[peerId]);
   useEffect(()=>{
     let active=true;
@@ -159,16 +162,18 @@ export default function MessagesPage({me}) {
     window.requestAnimationFrame(()=>searchRef.current?.focus());
   }
   function back() {setParams({});setError('');}
-  async function send(content,file,originalFile) {
+  async function send(content,files=[]) {
     if(!peerId||sending)return false;
     setSending(true);setError('');
     try {
-      if(file) {
+      if(files.length) {
         const form=new FormData();
         form.append('receiverId',peerId);
         form.append('caption',content);
-        form.append('originalName',originalFile?.name||file.name);
-        form.append('file',file);
+        files.forEach(({file,original})=>{
+          form.append('originalName',original.name);
+          form.append('file',file);
+        });
         await api('/chat/attachments',{method:'POST',auth:true,body:form});
       }else{
         await api('/chat/gui',{method:'POST',auth:true,
@@ -180,6 +185,10 @@ export default function MessagesPage({me}) {
     }catch(err){setError(err.message);return false;}
     finally{setSending(false);}
   }
+  const conversationMedia=useMemo(()=>messages.flatMap(message=>
+    (message.attachments?.length ? message.attachments : message.attachment?[message.attachment]:[])
+      .filter(file=>file.kind==='image'||file.kind==='video')
+  ),[messages]);
   const visibleInbox=inbox.filter(item=>!query.trim()||
     item.user.tenDangNhap.toLocaleLowerCase('vi').includes(query.trim().toLocaleLowerCase('vi')));
   const known=new Set(inbox.map(item=>Number(item.user.id)));
@@ -280,7 +289,8 @@ export default function MessagesPage({me}) {
                 <div className="zs-messenger-message-group">
                   <div className="zs-messenger-bubble">
                     {m.noiDung&&<p className="zs-chat-message-text">{m.noiDung}</p>}
-                    {m.attachment&&<ChatAttachment attachment={m.attachment}/>}
+                    {(m.attachments?.length||m.attachment)&&<ChatAttachment attachments={m.attachments}
+                      attachment={m.attachment} onOpen={setViewingMediaId}/>}
                   </div>
                   <time dateTime={m.thoiGian}>{clock(m.thoiGian)}</time>
                 </div>
@@ -302,5 +312,8 @@ export default function MessagesPage({me}) {
       </div>}
     </section>
     <PopupFeedback message={error}/>
+    {viewingMediaId!==null&&conversationMedia.length>0&&
+      <ChatMediaViewer media={conversationMedia} selectedId={viewingMediaId}
+        onClose={()=>setViewingMediaId(null)}/>}
   </section>;
 }

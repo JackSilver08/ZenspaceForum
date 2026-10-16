@@ -1,53 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import { Download, FileArchive, FileText, Film, ImageIcon, Music2 } from 'lucide-react';
+import React from 'react';
+import { Download, FileArchive, FileText, Music2 } from 'lucide-react';
 import { getToken } from '../../api';
+import { ChatMediaThumb, useChatMediaAsset } from './ChatMediaAsset';
 
-const icons={image:ImageIcon,video:Film,audio:Music2,file:FileArchive};
-function size(bytes) {
-  const amount=Number(bytes)||0;
-  return amount>=1024*1024?(amount/1024/1024).toFixed(1)+' MB':(amount/1024).toFixed(0)+' KB';
+export const chatFileSize = bytes => {
+  const value=Number(bytes)||0;
+  return value>=1024*1024?(value/1024/1024).toFixed(1)+' MB':(value/1024).toFixed(0)+' KB';
+};
+
+export async function downloadChatFile(file) {
+  const response=await fetch(file.url,{headers:{Authorization:'Bearer '+getToken()}});
+  if(!response.ok)throw new Error('Không thể tải tệp đính kèm.');
+  const blob=await response.blob();
+  const url=URL.createObjectURL(blob);
+  const anchor=document.createElement('a');
+  anchor.href=url;
+  anchor.download=file.name||'attachment';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export default function ChatAttachment({ attachment }) {
-  const [url,setUrl]=useState('');
-  const [error,setError]=useState('');
-  const [loading,setLoading]=useState(true);
-  useEffect(()=>{
-    let live=true;
-    let objectUrl='';
-    setUrl('');setError('');setLoading(true);
-    const controller=new AbortController();
-    async function load() {
-      try {
-        const response=await fetch(attachment.url,{headers:{Authorization:'Bearer '+getToken()},signal:controller.signal});
-        if(!response.ok)throw new Error('Tệp không tồn tại hoặc bạn không có quyền truy cập.');
-        const blob=await response.blob();
-        if(!live)return;
-        objectUrl=URL.createObjectURL(blob);
-        setUrl(objectUrl);
-      }catch(err){if(live&&err.name!=='AbortError')setError(err.message);}
-      finally{if(live)setLoading(false);}
-    }
-    load();
-    return ()=>{live=false;controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};
-  },[attachment.id,attachment.url]);
-  const Icon=icons[attachment.kind]||FileText;
-  return <div className="zs-chat-attachment">
-    {loading&&<span role="status" className="zs-chat-media-loading">Đang tải tệp đính kèm...</span>}
-    {error&&<span role="alert" className="zs-chat-media-error">{error}</span>}
-    {url&&attachment.kind==='image'&&
-      <a href={url} download={attachment.name} title={'Tải '+attachment.name}>
-        <img src={url} alt={attachment.name} loading="lazy" className="zs-chat-image"/>
-      </a>}
-    {url&&attachment.kind==='video'&&
-      <video className="zs-chat-video" controls preload="metadata" src={url} aria-label={attachment.name}/>}
-    {url&&attachment.kind==='audio'&&
-      <audio className="zs-chat-audio" controls preload="metadata" src={url} aria-label={attachment.name}/>}
-    <div className="zs-chat-media-caption">
-      <Icon size={16} aria-hidden="true"/>
-      <span title={attachment.name}>{attachment.name}</span>
-      <small>{size(attachment.size)}</small>
-      {url&&<a href={url} download={attachment.name} aria-label={'Tải tệp '+attachment.name}
-        title="Tải xuống"><Download size={17}/></a>}
+
+function ChatDocument({attachment}) {
+  const {url,loading,error}=useChatMediaAsset(attachment);
+  const isAudio=attachment.kind==='audio';
+  return <div className="zs-chat-document zs-chat-media-caption">
+    <span className="zs-chat-document-icon" aria-hidden="true">
+      {isAudio?<Music2 size={21}/>:attachment.name?.endsWith('.zip')?<FileArchive size={21}/>:<FileText size={21}/>}
+    </span>
+    <div className="zs-chat-document-info">
+      <strong title={attachment.name}>{attachment.name}</strong>
+      <span>{chatFileSize(attachment.size)}</span>
+      {isAudio&&url&&<audio controls preload="metadata" src={url} aria-label={attachment.name}/>}
+      {error&&<small role="alert">{error}</small>}
     </div>
+    <button type="button" disabled={loading||!url} aria-label={'Tải tệp '+attachment.name}
+      title="Tải xuống" onClick={()=>downloadChatFile(attachment).catch(()=>{})}>
+      <Download size={18}/>
+    </button>
+  </div>;
+}
+
+export default function ChatAttachment({attachment,attachments,onOpen}) {
+  const files=attachments?.length?attachments:attachment?[attachment]:[];
+  if(!files.length)return null;
+  const media=files.filter(file=>file.kind==='image'||file.kind==='video');
+  const rest=files.filter(file=>file.kind!=='image'&&file.kind!=='video');
+  return <div className="zs-chat-attachment">
+    {media.length>0&&<div className={'zs-chat-media-grid'+(media.length===1?' is-single':media.length>4?' is-many':'')}
+      aria-label={media.length+' ảnh hoặc video'}>
+      {media.map(file=><ChatMediaThumb key={file.id} attachment={file}
+        onClick={()=>onOpen?.(file.id)}/>)}
+    </div>}
+    {media.length===1&&<div className="zs-chat-media-caption">
+      <span title={media[0].name}>{media[0].name}</span>
+      <small>{chatFileSize(media[0].size)}</small>
+      <button type="button" aria-label={'Tải tệp '+media[0].name}
+        onClick={()=>downloadChatFile(media[0]).catch(()=>{})}><Download size={17}/></button>
+    </div>}
+    {rest.length>0&&<div className="zs-chat-documents">
+      {rest.map(file=><ChatDocument key={file.id} attachment={file}/>)}
+    </div>}
   </div>;
 }

@@ -42,7 +42,8 @@ type chatMediaInfo struct {
 func chatAttachmentJSON(id int64, info chatMediaInfo) gin.H {
  return gin.H{"id":id,"name":info.OriginalName,"kind":info.Kind,"mime":info.MIME,
   "size":info.StoredBytes,"originalSize":info.OriginalBytes,
-  "url":fmt.Sprintf("/api/chat/attachments/%d",id)}
+  "url":fmt.Sprintf("/api/chat/attachments/%d",id),
+  "previewUrl":fmt.Sprintf("/api/chat/attachments/%d/preview",id)}
 }
 
 func chatFileName(raw string) string {
@@ -208,25 +209,28 @@ func chatOptimize(ctx context.Context,original string,ext string,dir string,toke
 func (a *App) sendChatAttachment(c *gin.Context){
  c.Request.Body=http.MaxBytesReader(c.Writer,c.Request.Body,chatUploadLimit+(2<<20))
  if err:=c.Request.ParseMultipartForm(4<<20);err!=nil {
-  fail(c,http.StatusRequestEntityTooLarge,"Tệp vượt quá giới hạn cho phép");return
+  fail(c,413,"Tổng dung lượng tệp vượt quá 80 MB");return
  }
- if c.Request.MultipartForm!=nil {defer c.Request.MultipartForm.RemoveAll()}
+ if c.Request.MultipartForm==nil {fail(c,400,"Vui lòng chọn tệp đính kèm");return}
+ defer c.Request.MultipartForm.RemoveAll()
+ files:=c.Request.MultipartForm.File["file"]
+ if len(files)==0||len(files)>10 {fail(c,400,"Chọn từ 1 đến 10 tệp cho mỗi tin nhắn");return}
  receiver,err:=strconv.Atoi(c.PostForm("receiverId"))
  if err!=nil||receiver<1||receiver==userID(c){fail(c,400,"Người nhận không hợp lệ");return}
  caption:=strings.TrimSpace(c.PostForm("caption"))
- if utf8.RuneCountInString(caption)>5000 {fail(c,400,"Nội dung tin nhắn quá dài");return}
- file,err:=c.FormFile("file")
- if err!=nil{fail(c,400,"Vui lòng chọn tệp đính kèm");return}
- filename:=chatFileName(file.Filename)
- originalFilename:=chatFileName(c.PostForm("originalName"))
- if originalFilename=="attachment" {originalFilename=filename}
- ext:=strings.ToLower(filepath.Ext(filename))
- kind,_,ok:=chatKind(ext)
- if !ok{fail(c,400,"Loại tệp không được hỗ trợ");return}
- limit:=chatDocumentMax
- if kind=="image"{limit=chatImageMax}
- if kind=="video"{limit=chatUploadLimit}
- if file.Size<=0 || file.Size>limit {fail(c,413,"Tệp vượt quá giới hạn dung lượng");return}
+ if utf8.RuneCountInString(caption)>5000{fail(c,400,"Nội dung tin nhắn quá dài");return}
+ // Validate every entry before any media processing or DB write.
+ var total int64
+ for _,file:=range files {
+  kind,_,ok:=chatKind(strings.ToLower(filepath.Ext(chatFileName(file.Filename))))
+  if !ok {fail(c,400,"Loại tệp không được hỗ trợ");return}
+  limit:=chatDocumentMax
+  if kind=="image"{limit=chatImageMax}
+  if kind=="video"{limit=chatUploadLimit}
+  if file.Size<=0||file.Size>limit {fail(c,413,"Tệp vượt quá giới hạn dung lượng");return}
+  total+=file.Size
+  if total>chatUploadLimit {fail(c,413,"Tổng dung lượng tệp vượt quá 80 MB");return}
+ }
  var exists int
  if err:=a.DB.QueryRowContext(c.Request.Context(),"SELECT id FROM TaiKhoan WHERE id=?",receiver).Scan(&exists);err!=nil {
   if errors.Is(err,sql.ErrNoRows){fail(c,404,"Người nhận không tồn tại");return}
@@ -238,64 +242,102 @@ func (a *App) sendChatAttachment(c *gin.Context){
  var used int64
  if err:=a.DB.QueryRowContext(c.Request.Context(),
   "SELECT COALESCE(SUM(a.stored_bytes),0) FROM chat_attachments a JOIN tin_nhan m ON m.id=a.message_id WHERE m.nguoi_gui_id=?",
-  userID(c)).Scan(&used);err!=nil {fail(c,500,"Không kiểm tra được dung lượng lưu trữ");return}
- if used+file.Size>chatUserStorageQuota {
-  fail(c,413,"Bạn đã sử dụng hết hạn mức 500 MB tệp chat. Vui lòng liên hệ quản trị viên.");return
+  userID(c)).Scan(&used);err!=nil{fail(c,500,"Không kiểm tra được dung lượng lưu trữ");return}
+ if used+total>chatUserStorageQuota {
+  fail(c,413,"Bạn đã sử dụng hết hạn mức 500 MB tệp chat.");return
+ }
+ select{
+ case chatTranscodeSlots<-struct{}{}:
+  defer func(){<-chatTranscodeSlots}()
+ default:fail(c,429,"Máy chủ đang xử lý nhiều tệp. Vui lòng thử lại sau.");return
  }
  dir:=filepath.Join(a.UploadDir,"chat")
  if err:=os.MkdirAll(dir,0700);err!=nil{fail(c,500,"Không thể chuẩn bị kho lưu trữ");return}
- token,err:=chatTempName()
- if err!=nil{fail(c,500,"Không thể tạo tên tệp");return}
- incoming:=filepath.Join(dir,"incoming-"+token)
- src,err:=file.Open()
- if err!=nil{fail(c,400,"Không thể đọc tệp");return}
- temp,err:=os.OpenFile(incoming,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600)
- if err!=nil{src.Close();fail(c,500,"Không thể lưu tệp tạm");return}
- size,copyErr:=io.Copy(temp,io.LimitReader(src,limit+1))
- closeErr:=temp.Close()
- src.Close()
- defer os.Remove(incoming)
- defer os.Remove(filepath.Join(dir,"processed-"+token+".webp"))
- defer os.Remove(filepath.Join(dir,"processed-"+token+".mp4"))
- defer os.Remove(filepath.Join(dir,"processed-"+token+".ogg"))
- defer os.Remove(filepath.Join(dir,"processed-"+token+".gz"))
- if copyErr!=nil||closeErr!=nil||size!=file.Size||size>limit {
-  fail(c,400,"Dữ liệu tệp không hợp lệ");return
+ type pendingFile struct{file chatMediaInfo;path string}
+ processed:=make([]pendingFile,0,len(files))
+ temporary:=make([]string,0,4*len(files))
+ committed:=false
+ defer func(){
+  for _,path:=range temporary{_ = os.Remove(path)}
+  if !committed {for _,file:=range processed {_ = os.Remove(file.path)}}
+ }()
+ originals:=c.Request.MultipartForm.Value["originalName"]
+ for i,file:=range files {
+  token,err:=chatTempName()
+  if err!=nil{fail(c,500,"Không thể tạo tên tệp");return}
+  incoming:=filepath.Join(dir,"incoming-"+token)
+  temporary=append(temporary,incoming)
+  for _,ext:=range []string{".webp",".mp4",".ogg",".gz"}{
+   temporary=append(temporary,filepath.Join(dir,"processed-"+token+ext))
+  }
+  preview:=filepath.Join(dir,"preview-"+token+".webp")
+  temporary=append(temporary,preview)
+  src,err:=file.Open()
+  if err!=nil{fail(c,400,"Không thể đọc tệp");return}
+  dest,err:=os.OpenFile(incoming,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600)
+  if err!=nil{src.Close();fail(c,500,"Không thể lưu tệp tạm");return}
+  size,copyErr:=io.Copy(dest,io.LimitReader(src,file.Size+1))
+  closeErr:=dest.Close()
+  src.Close()
+  if copyErr!=nil||closeErr!=nil||size!=file.Size{
+   fail(c,400,"Dữ liệu tệp không hợp lệ");return
+  }
+  final,meta,err:=chatOptimize(c.Request.Context(),incoming,
+   strings.ToLower(filepath.Ext(chatFileName(file.Filename))),dir,token,size)
+  if err!=nil{fail(c,400,"Không thể xử lý tệp: "+err.Error());return}
+  meta.OriginalName=chatFileName(file.Filename)
+  if i<len(originals) && strings.TrimSpace(originals[i])!="" {
+   meta.OriginalName=chatFileName(originals[i])
+  }
+  processed=append(processed,pendingFile{file:meta,path:final})
+  // Save a small poster for video grid tiles; browsers do not download the
+  // entire video just to display a thumbnail.
+  if meta.Kind=="video"{
+   thumbCtx,cancel:=context.WithTimeout(c.Request.Context(),12*time.Second)
+   err=chatCommand(thumbCtx,"ffmpeg","-nostdin","-hide_banner","-loglevel","error",
+    "-i",final,"-frames:v","1","-vf","scale=w='min(480,iw)':h=-2",
+    "-c:v","libwebp","-quality","65","-y",preview)
+   cancel()
+   if err==nil{
+    stat,statErr:=os.Stat(preview)
+    if statErr==nil&&stat.Size()>0 {temporary=append(temporary,preview)}
+   }
+  }
  }
- select {
- case chatTranscodeSlots<-struct{}{}:
-  defer func(){<-chatTranscodeSlots}()
- default:
-  fail(c,429,"Máy chủ đang xử lý nhiều tệp. Vui lòng thử lại sau.");return
- }
- processed,meta,err:=chatOptimize(c.Request.Context(),incoming,ext,dir,token,size)
- if err!=nil{fail(c,400,"Không thể xử lý tệp: "+err.Error());return}
- keepFile:=false
- defer func(){if !keepFile { _=os.Remove(processed) }}()
- meta.OriginalName=originalFilename
  tx,err:=a.DB.BeginTx(c.Request.Context(),nil)
  if err!=nil{fail(c,500,"Không thể lưu tin nhắn");return}
  defer tx.Rollback()
- // Recheck blocking atomically at message insertion just like plain chat.
  result,err:=tx.ExecContext(c.Request.Context(),
   "INSERT INTO tin_nhan(nguoi_gui_id,nguoi_nhan_id,noi_dung) "+
    "SELECT ?,?,? FROM DUAL WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE "+
    "(blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?))",
   userID(c),receiver,caption,userID(c),receiver,receiver,userID(c))
  if err!=nil{fail(c,500,"Không thể lưu tin nhắn");return}
- affected,_:=result.RowsAffected()
- if affected==0 {fail(c,403,"Không thể gửi tệp khi tài khoản đã bị chặn");return}
+ n,_:=result.RowsAffected()
+ if n==0{fail(c,403,"Không thể gửi tệp khi tài khoản đã bị chặn");return}
  messageID,_:=result.LastInsertId()
- result,err=tx.ExecContext(c.Request.Context(),`INSERT INTO chat_attachments(
-  message_id,original_name,stored_name,media_type,kind,original_bytes,stored_bytes,encoding)
-  VALUES(?,?,?,?,?,?,?,?)`,messageID,meta.OriginalName,meta.StoredName,meta.MIME,
-  meta.Kind,meta.OriginalBytes,meta.StoredBytes,meta.Encoding)
- if err!=nil{fail(c,500,"Không thể lưu tệp đính kèm");return}
- attachmentID,_:=result.LastInsertId()
+ attachments:=make([]gin.H,0,len(processed))
+ for _,f:=range processed {
+  result,err=tx.ExecContext(c.Request.Context(),`INSERT INTO chat_attachments(
+   message_id,original_name,stored_name,media_type,kind,original_bytes,stored_bytes,encoding)
+   VALUES(?,?,?,?,?,?,?,?)`,messageID,f.file.OriginalName,f.file.StoredName,f.file.MIME,
+   f.file.Kind,f.file.OriginalBytes,f.file.StoredBytes,f.file.Encoding)
+  if err!=nil{fail(c,500,"Không thể lưu tệp đính kèm");return}
+  attachmentID,_:=result.LastInsertId()
+  attachments=append(attachments,chatAttachmentJSON(attachmentID,f.file))
+ }
  if err:=tx.Commit();err!=nil{fail(c,500,"Không thể hoàn tất gửi tệp");return}
- keepFile=true
+ committed=true
+ // Video posters are kept only when the parent message commits.
+ for _,path:=range temporary {
+  if strings.HasPrefix(filepath.Base(path),"preview-"){continue}
+  _=os.Remove(path)
+ }
+ // Exclude posters from deferred cleanup on successful commit.
+ temporary=nil
  a.broadcastChat(userID(c),receiver,messageID)
- c.JSON(201,gin.H{"success":true,"id":messageID,"attachment":chatAttachmentJSON(attachmentID,meta)})
+ c.JSON(201,gin.H{"success":true,"id":messageID,"attachments":attachments,
+  "attachment":attachments[0]})
 }
 
 func (a *App) getChatAttachment(c *gin.Context){

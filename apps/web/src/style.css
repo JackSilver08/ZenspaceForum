@@ -13,6 +13,7 @@
 @import './styles/navigation-hub.css';
 @import './styles/popups.css';
 @import './styles/chat-composer.css';
+@import './styles/chat-gallery.css';
 
 /* Compatibility styling for account, search, messaging, and post details
    while their layouts migrate from Bootstrap to the Stitch design system. */
