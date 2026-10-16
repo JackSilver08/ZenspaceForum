@@ -28,7 +28,9 @@ func (a *App) sendMessage(c *gin.Context){
     if err!=nil{fail(c,500,"Không gửi được tin nhắn");return}
     n,_:=result.RowsAffected()
     if n==0{fail(c,403,"Không thể nhắn tin khi tài khoản đã bị chặn");return}
-    c.JSON(201,gin.H{"success":true,"message":"Đã gửi"})
+    lastID,_:=result.LastInsertId()
+    a.broadcastChat(userID(c),receiver,lastID)
+    c.JSON(201,gin.H{"success":true,"message":"Đã gửi","id":lastID})
 }
 func (a *App) chatHistory(c *gin.Context){
     id1,err1:=strconv.Atoi(c.Param("id1"))
@@ -36,7 +38,7 @@ func (a *App) chatHistory(c *gin.Context){
     if err1!=nil||err2!=nil||id1<1||id2<1{fail(c,400,"ID không hợp lệ");return}
     if userID(c)!=id1 && userID(c)!=id2{fail(c,403,"Không được xem cuộc trò chuyện này");return}
     rows,err:=a.DB.QueryContext(c.Request.Context(),
-        "SELECT m.id,m.nguoi_gui_id,m.nguoi_nhan_id,m.noi_dung,m.thoi_gian,s.tenDangNhap,COALESCE(s.avatar,''),r.tenDangNhap,COALESCE(r.avatar,'') FROM tin_nhan m JOIN TaiKhoan s ON s.id=m.nguoi_gui_id JOIN TaiKhoan r ON r.id=m.nguoi_nhan_id WHERE (m.nguoi_gui_id=? AND m.nguoi_nhan_id=?) OR (m.nguoi_gui_id=? AND m.nguoi_nhan_id=?) ORDER BY m.thoi_gian ASC,m.id ASC LIMIT 200",
+        "SELECT m.id,m.nguoi_gui_id,m.nguoi_nhan_id,m.noi_dung,m.thoi_gian,s.tenDangNhap,COALESCE(s.avatar,''),r.tenDangNhap,COALESCE(r.avatar,'') FROM (SELECT * FROM tin_nhan WHERE (nguoi_gui_id=? AND nguoi_nhan_id=?) OR (nguoi_gui_id=? AND nguoi_nhan_id=?) ORDER BY thoi_gian DESC,id DESC LIMIT 200) m JOIN TaiKhoan s ON s.id=m.nguoi_gui_id JOIN TaiKhoan r ON r.id=m.nguoi_nhan_id ORDER BY m.thoi_gian ASC,m.id ASC",
         id1,id2,id2,id1)
     if err!=nil{fail(c,500,"Không tải được tin nhắn");return}
     defer rows.Close()

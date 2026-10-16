@@ -126,3 +126,9 @@
  .zs-messenger-welcome{padding:20px}
 }
 @media(prefers-reduced-motion:reduce){.zs-messenger *{scroll-behavior:auto}}
+
+/* Distinguish a healthy WebSocket connection from a reconnecting session.
+   This reports transport status, not the other user's presence. */
+.zs-chat-connection {display:inline-flex;align-items:center;gap:7px}
+.zs-chat-connection::before {content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#a1adc1}
+.zs-chat-connection.is-online::before {background:#24a472;box-shadow:0 0 0 3px #24a4721f}

@@ -20,6 +20,7 @@ type App struct {
     Redis *redis.Client
     Secret []byte
     UploadDir string
+    hub *chatHub
 }
 
 func fail(c *gin.Context, status int, message string) {
@@ -104,6 +105,7 @@ func userID(c *gin.Context) int { n, _ := c.Get("userID"); id, _ := n.(int); ret
 func isAdmin(c *gin.Context) bool { role, _ := c.Get("role"); return role == "admin" }
 
 func (a *App) Router() *gin.Engine {
+    a.hub = newChatHub()
     r := gin.New()
     allowedOrigins:=[]string{"http://localhost:5173","http://127.0.0.1:5173"}
     if configured:=strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"));configured!="" {allowedOrigins=strings.Split(configured,",")}
@@ -126,6 +128,7 @@ func (a *App) Router() *gin.Engine {
     api.GET("/nguoidung/:id", a.getUser)
     api.GET("/nguoidung/trangcanhan/:id", a.profile)
     api.GET("/timkiemnguoidung", a.searchUsers)
+    api.GET("/chat/ws", a.chatWebSocket)
 
     secured := api.Group("/")
     secured.Use(a.auth)

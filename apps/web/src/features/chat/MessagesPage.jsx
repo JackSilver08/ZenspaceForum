@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, RefreshCw, Search, Send, Sparkles, UserRoundPlus, X } from 'lucide-react';
-import { api } from '../../api';
+import { api, getToken } from '../../api';
 import { Avatar } from '../../components/layout/AppShell';
 
 function clock(value) {
@@ -43,6 +43,11 @@ export default function MessagesPage({me}) {
   const [content,setContent] = useState('');
   const [sending,setSending] = useState(false);
   const [refresh,setRefresh] = useState(0);
+  const [inboxTick,setInboxTick] = useState(0);
+  const [historyTick,setHistoryTick] = useState(0);
+  const [socketState,setSocketState] = useState('connecting');
+  const currentPeer=useRef(peerId);
+  currentPeer.current=peerId;
   const searchRef=useRef(null);
   const messagePanel=useRef(null);
 
@@ -58,7 +63,7 @@ export default function MessagesPage({me}) {
     }).catch(err=>{if(active)setError(err.message);})
       .finally(()=>{if(active)setLoadingInbox(false);});
     return ()=>{active=false;};
-  },[refresh,me.id]);
+  },[refresh,inboxTick,me.id]);
   useEffect(()=>{
     let active=true;
     setPeople([]);setSearchError('');
@@ -71,8 +76,12 @@ export default function MessagesPage({me}) {
     return ()=>{active=false;};
   },[newChat,searchTerm,me.id]);
   useEffect(()=>{
+    setPeer(null);
+    setMessages([]);
+    setContent('');
+  },[peerId]);
+  useEffect(()=>{
     let active=true;
-    setPeer(null);setMessages([]);setContent('');
     if(!peerId) {setLoadingChat(false);return ()=>{active=false;};}
     setLoadingChat(true);
     Promise.all([api('/chat/lichsu/'+me.id+'/'+peerId,{auth:true}),api('/nguoidung/'+peerId)])
@@ -81,10 +90,65 @@ export default function MessagesPage({me}) {
       }).catch(err=>{if(active)setError(err.message);})
       .finally(()=>{if(active)setLoadingChat(false);});
     return ()=>{active=false;};
-  },[peerId,me.id,refresh]);
+  },[peerId,me.id,refresh,historyTick]);
   useEffect(()=>{
     if(messagePanel.current) messagePanel.current.scrollTop=messagePanel.current.scrollHeight;
   },[messages,peerId]);
+
+  // Messages continue to be written through the authenticated REST endpoint.
+  // WebSocket delivers immediate change notifications to every active browser.
+  // Re-fetching on reconnect fills gaps that occur during network outages.
+  useEffect(()=>{
+    let alive=true,ws=null,retryTimer=null,attempt=0;
+    const sync=()=>{setInboxTick(v=>v+1);setHistoryTick(v=>v+1);};
+    function connect() {
+      if(!alive)return;
+      const token=getToken();
+      if(!token){setSocketState('offline');return;}
+      setSocketState('connecting');
+      const scheme=window.location.protocol==='https:'?'wss:':'ws:';
+      ws=new WebSocket(scheme+'//'+window.location.host+'/api/chat/ws',
+        ['zenspace.chat.v1','auth.'+token]);
+      ws.onopen=()=>{
+        if(!alive)return;
+        attempt=0;
+        setSocketState('online');
+        sync();
+      };
+      ws.onmessage=event=>{
+        if(!alive)return;
+        let payload;
+        try{payload=JSON.parse(event.data);}catch{return;}
+        if(payload.type!=='chat.message')return;
+        setInboxTick(v=>v+1);
+        if(String(payload.peerId)===String(currentPeer.current))
+          setHistoryTick(v=>v+1);
+      };
+      ws.onerror=()=>ws?.close();
+      ws.onclose=()=>{
+        if(!alive)return;
+        setSocketState('reconnecting');
+        const delay=Math.min(1000*Math.pow(2,attempt++),15000);
+        retryTimer=window.setTimeout(connect,delay);
+      };
+    }
+    const onFocus=()=>{if(alive)sync();};
+    const onVisible=()=>{if(!document.hidden)onFocus();};
+    window.addEventListener('focus',onFocus);
+    document.addEventListener('visibilitychange',onVisible);
+    connect();
+    return ()=>{
+      alive=false;
+      window.clearTimeout(retryTimer);
+      window.removeEventListener('focus',onFocus);
+      document.removeEventListener('visibilitychange',onVisible);
+      if(ws) {
+        ws.onclose=null;
+        ws.onerror=null;
+        ws.close();
+      }
+    };
+  },[me.id]);
 
   function selectPeer(id) {
     setParams({user:String(id)});
@@ -102,7 +166,7 @@ export default function MessagesPage({me}) {
     setSending(true);setError('');
     try {
       await api('/chat/gui',{auth:true,method:'POST',body:{nguoiNhanID:Number(peerId),noiDung:value}});
-      setContent('');setRefresh(v=>v+1);
+      setContent('');setInboxTick(v=>v+1);setHistoryTick(v=>v+1);
     }catch(err){setError(err.message);}
     finally{setSending(false);}
   }
@@ -192,7 +256,13 @@ export default function MessagesPage({me}) {
         <header className="zs-messenger-conversation-header">
           <button className="zs-messenger-back" type="button" onClick={back} aria-label="Quay lại danh sách hội thoại"><ArrowLeft size={21}/></button>
           <Avatar name={selectedUser?.tenDangNhap} avatar={selectedUser?.avatar}/>
-          <div className="zs-messenger-chat-person"><strong>{name}</strong><span>Trò chuyện trên ZenSpace</span></div>
+          <div className="zs-messenger-chat-person"><strong>{name}</strong>
+            <span className={socketState==='online'?'zs-chat-connection is-online':'zs-chat-connection'}>
+              {socketState==='online'?'Kết nối thời gian thực':
+                socketState==='reconnecting'?'Đang kết nối lại...':
+                socketState==='offline'?'Đang ngoại tuyến':'Đang kết nối realtime...'}
+            </span>
+          </div>
           <Link to={'/users/'+peerId} className="zs-messenger-profile">Xem hồ sơ <ArrowRight size={15}/></Link>
           <button className="zs-messenger-sync" type="button" title="Làm mới tin nhắn" aria-label="Làm mới tin nhắn"
             onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={17}/></button>
@@ -202,7 +272,7 @@ export default function MessagesPage({me}) {
           {!loadingChat&&!messages.length&&<div className="zs-messenger-first-message"><Orbit size={28}/>
             <h2>Hãy gửi lời chào!</h2><p>Đây là nơi bắt đầu câu chuyện giữa bạn và {name}.</p>
           </div>}
-          {!loadingChat&&messages.map(m=>{
+          {(!loadingChat||messages.length>0)&&messages.map(m=>{
             const day=messageDay(m.thoiGian),showDay=day!==previousDay;
             previousDay=day;
             const own=Number(m.nguoiGuiID)===Number(me.id);
