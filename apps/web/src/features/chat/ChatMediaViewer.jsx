@@ -87,7 +87,7 @@ export default function ChatMediaViewer({media,selectedId,onClose,onLoadMore,has
     function shortcuts(event){
       if(event.key==='Escape'){event.preventDefault();onClose();return;}
       if(minimized)return;
-      if(event.target?.closest?.('button,video,input,textarea,select'))return;
+      if(event.target?.closest?.('video,input,textarea,select'))return;
       if(event.key==='ArrowLeft'||event.key==='ArrowUp'){
         event.preventDefault();move(-1);
       }else if(event.key==='ArrowRight'||event.key==='ArrowDown'){
