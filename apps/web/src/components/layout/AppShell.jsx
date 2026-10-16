@@ -103,7 +103,8 @@ function CommunitySuggestions({ me }) {
 export default function AppShell({ me, onLogout, children }) {
   const location = useLocation();
   const showSuggestions = location.pathname === '/' || location.pathname === '/following';
-  return <div className="zs-app">
+  const isMessages = location.pathname === '/messages';
+  return <div className={isMessages ? 'zs-app zs-app--messages' : 'zs-app'}>
     <header className="zs-topbar">
       <Brand/>
       <Link to="/explore" className="zs-topbar-search" aria-label="Tìm kiếm thành viên">
@@ -126,7 +127,7 @@ export default function AppShell({ me, onLogout, children }) {
         <div className="zs-sidebar-footer">ZENSPACE <span>✦</span> 2026</div>
       </aside>
       <div className="zs-content-area">
-        <div className={showSuggestions ? "zs-layout" : "zs-layout zs-layout--wide"}>
+        <div className={isMessages ? "zs-layout zs-layout--messages" : showSuggestions ? "zs-layout" : "zs-layout zs-layout--wide"}>
           <main id="main-content" className="zs-main">{children}</main>
           {showSuggestions && <aside className="zs-right-sidebar" aria-label="Gợi ý thành viên">
             <CommunitySuggestions me={me}/>
