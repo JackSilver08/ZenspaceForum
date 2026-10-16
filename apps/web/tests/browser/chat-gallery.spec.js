@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 
-const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEAaqpCIrIngcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfQIxAgJVdKIwAAAAAElFTkSuQmCC','base64');
+const png=readFileSync(new URL('../fixtures/gallery-blue.png',import.meta.url));
 const video=readFileSync(new URL('../fixtures/tiny-video.mp4',import.meta.url));
 
 async function signup(request,prefix,stamp){
