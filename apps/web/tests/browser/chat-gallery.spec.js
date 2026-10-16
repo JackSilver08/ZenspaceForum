@@ -32,7 +32,10 @@ test('Zalo-style gallery groups media in one chat message and opens conversation
  await expect(composer.locator('.zs-chat-attachment-draft')).toHaveCount(4);
  await expect(composer.getByText('4/10 tệp')).toBeVisible();
  await composer.getByRole('textbox',{name:'Nội dung tin nhắn'}).fill('Album cuối tuần');
+ const firstUpload=page.waitForResponse(response=>response.url().includes('/api/chat/attachments'));
  await composer.getByRole('button',{name:'Gửi'}).click();
+ const uploadResult=await firstUpload;
+ expect(uploadResult.status(),await uploadResult.text()).toBe(201);
  const own=page.locator('.zs-messenger-bubble-row.is-own');
  await expect(own).toHaveCount(1);
  await expect(own.locator('.zs-chat-media-grid')).toHaveCount(1);
@@ -110,7 +113,10 @@ test('Gallery is responsive and enforces 10-file limit without sending',async({p
  await expect(form.getByText('Mỗi tin nhắn gửi tối đa 10 tệp.')).toBeVisible();
  await form.locator('.zs-chat-attachment-draft').first().getByRole('button',{name:/Bỏ tệp đính kèm/}).click();
  await expect(form.locator('.zs-chat-attachment-draft')).toHaveCount(9);
+ const secondUpload=page.waitForResponse(response=>response.url().includes('/api/chat/attachments'));
  await form.getByRole('button',{name:'Gửi'}).click();
+ const uploadStatus=await secondUpload;
+ expect(uploadStatus.status(),await uploadStatus.text()).toBe(201);
  const gallery=page.locator('.zs-chat-media-grid');
  await expect(gallery).toBeVisible();
  await expect(gallery.locator('.zs-chat-media-tile')).toHaveCount(9);
