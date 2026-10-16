@@ -21,6 +21,7 @@ test('Messenger: search by name, start conversation, send and receive, mobile na
   },{token:mine.token,user:mine.user});
   await page.goto('/messages');
   await expect(page.getByRole('heading',{name:'Tin nhắn'})).toBeVisible();
+  await expect(page.getByRole('button',{name:/Làm mới (hội thoại|tin nhắn)/})).toHaveCount(0);
   await expect(page.getByText('Chào mừng đến với')).toBeVisible();
   await expect(page.locator('#zs-peer-id')).toHaveCount(0);
   await page.getByRole('button',{name:'Bắt đầu cuộc trò chuyện mới'}).click();
@@ -28,6 +29,7 @@ test('Messenger: search by name, start conversation, send and receive, mobile na
   await expect(page.locator('.zs-messenger-person').filter({hasText:peer.user.tenDangNhap})).toBeVisible();
   await page.locator('.zs-messenger-person').filter({hasText:peer.user.tenDangNhap}).click();
   await expect(page.locator('.zs-messenger-conversation-header')).toContainText(peer.user.tenDangNhap);
+  await expect(page.getByRole('button',{name:/Làm mới (hội thoại|tin nhắn)/})).toHaveCount(0);
   const editor=page.getByRole('textbox',{name:'Nội dung tin nhắn'});
   await editor.fill('Lời chào từ ZenSpace '+stamp);
   await editor.press('Enter');
@@ -46,6 +48,7 @@ test('Messenger: search by name, start conversation, send and receive, mobile na
   await expect(page.locator('.zs-messenger-bubble-row:not(.is-own) .zs-messenger-bubble')).toContainText('Hồi âm '+stamp);
   await page.setViewportSize({width:390,height:844});
   await expect(page.locator('.zs-messenger-conversation')).toBeVisible();
+  await expect(page.getByRole('button',{name:/Làm mới (hội thoại|tin nhắn)/})).toHaveCount(0);
   await expect(page.locator('.zs-messenger-list')).toBeHidden();
   await page.getByRole('button',{name:'Quay lại danh sách hội thoại'}).click();
   await expect(page.locator('.zs-messenger-list')).toBeVisible();

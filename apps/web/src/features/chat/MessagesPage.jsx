@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, RefreshCw, Search, Send, Sparkles, UserRoundPlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, Search, Send, Sparkles, UserRoundPlus, X } from 'lucide-react';
 import { api, getToken } from '../../api';
 import { PopupFeedback } from '../../components/ui/PopupProvider';
 import { Avatar } from '../../components/layout/AppShell';
@@ -43,7 +43,6 @@ export default function MessagesPage({me}) {
   const [searchError,setSearchError] = useState('');
   const [content,setContent] = useState('');
   const [sending,setSending] = useState(false);
-  const [refresh,setRefresh] = useState(0);
   const [inboxTick,setInboxTick] = useState(0);
   const [historyTick,setHistoryTick] = useState(0);
   const [socketState,setSocketState] = useState('connecting');
@@ -64,7 +63,7 @@ export default function MessagesPage({me}) {
     }).catch(err=>{if(active)setError(err.message);})
       .finally(()=>{if(active)setLoadingInbox(false);});
     return ()=>{active=false;};
-  },[refresh,inboxTick,me.id]);
+  },[inboxTick,me.id]);
   useEffect(()=>{
     let active=true;
     setPeople([]);setSearchError('');
@@ -91,7 +90,7 @@ export default function MessagesPage({me}) {
       }).catch(err=>{if(active)setError(err.message);})
       .finally(()=>{if(active)setLoadingChat(false);});
     return ()=>{active=false;};
-  },[peerId,me.id,refresh,historyTick]);
+  },[peerId,me.id,historyTick]);
   useEffect(()=>{
     if(messagePanel.current) messagePanel.current.scrollTop=messagePanel.current.scrollHeight;
   },[messages,peerId]);
@@ -246,11 +245,6 @@ export default function MessagesPage({me}) {
             item.thoiGian,String(item.user.id)===peerId))}
         </>}
       </div>
-      <div className="zs-messenger-list-footer">
-        <button type="button" onClick={()=>setRefresh(v=>v+1)} aria-label="Làm mới hội thoại">
-          <RefreshCw size={16}/> Làm mới
-        </button>
-      </div>
     </aside>
     <section className="zs-messenger-conversation" aria-label={peerId?'Hội thoại với '+name:'Khung trò chuyện'}>
       {peerId ? <>
@@ -265,8 +259,6 @@ export default function MessagesPage({me}) {
             </span>
           </div>
           <Link to={'/users/'+peerId} className="zs-messenger-profile">Xem hồ sơ <ArrowRight size={15}/></Link>
-          <button className="zs-messenger-sync" type="button" title="Làm mới tin nhắn" aria-label="Làm mới tin nhắn"
-            onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={17}/></button>
         </header>
         <div className="zs-messenger-chat-scroll" ref={messagePanel} aria-live="polite">
           {loadingChat&&<p role="status" className="zs-messenger-chat-status">Đang tải tin nhắn...</p>}
