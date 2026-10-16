@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     && CGO_ENABLED=0 go build -v -trimpath -o /zenspace-api ./cmd/server
 
 FROM alpine:3.21
-RUN apk add --no-cache su-exec \
+RUN apk add --no-cache su-exec ffmpeg \
     && addgroup -S app \
     && adduser -S app -G app
 WORKDIR /app

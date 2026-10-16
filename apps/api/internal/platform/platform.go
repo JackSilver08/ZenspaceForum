@@ -57,5 +57,6 @@ func Migrate(db *sql.DB) error {
     if err := MigratePostControls(db); err != nil { return err }
     if err := MigrateSocialSafety(db); err != nil { return err }
     if err := MigratePostLifecycle(db); err != nil { return err }
-    return MigrateCommentInteractions(db)
+    if err := MigrateCommentInteractions(db); err != nil { return err }
+    return MigrateChatAttachments(db)
 }

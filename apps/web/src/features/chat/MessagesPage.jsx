@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, Search, Send, Sparkles, UserRoundPlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, MessageSquarePlus, Orbit, Search, Sparkles, UserRoundPlus, X } from 'lucide-react';
 import { api, getToken } from '../../api';
 import { PopupFeedback } from '../../components/ui/PopupProvider';
+import ChatComposer from './ChatComposer';
+import ChatAttachment from './ChatAttachment';
 import { Avatar } from '../../components/layout/AppShell';
 
 function clock(value) {
@@ -41,7 +43,6 @@ export default function MessagesPage({me}) {
   const [loadingChat,setLoadingChat] = useState(false);
   const [error,setError] = useState('');
   const [searchError,setSearchError] = useState('');
-  const [content,setContent] = useState('');
   const [sending,setSending] = useState(false);
   const [inboxTick,setInboxTick] = useState(0);
   const [historyTick,setHistoryTick] = useState(0);
@@ -78,7 +79,6 @@ export default function MessagesPage({me}) {
   useEffect(()=>{
     setPeer(null);
     setMessages([]);
-    setContent('');
   },[peerId]);
   useEffect(()=>{
     let active=true;
@@ -158,23 +158,27 @@ export default function MessagesPage({me}) {
     setNewChat(v=>!v);setQuery('');setPeople([]);setSearchError('');
     window.requestAnimationFrame(()=>searchRef.current?.focus());
   }
-  function back() {setParams({});setContent('');setError('');}
-  async function send(event) {
-    event.preventDefault();
-    const value=content.trim();
-    if(!peerId||!value||sending)return;
+  function back() {setParams({});setError('');}
+  async function send(content,file,originalFile) {
+    if(!peerId||sending)return false;
     setSending(true);setError('');
     try {
-      await api('/chat/gui',{auth:true,method:'POST',body:{nguoiNhanID:Number(peerId),noiDung:value}});
-      setContent('');setInboxTick(v=>v+1);setHistoryTick(v=>v+1);
-    }catch(err){setError(err.message);}
+      if(file) {
+        const form=new FormData();
+        form.append('receiverId',peerId);
+        form.append('caption',content);
+        form.append('originalName',originalFile?.name||file.name);
+        form.append('file',file);
+        await api('/chat/attachments',{method:'POST',auth:true,body:form});
+      }else{
+        await api('/chat/gui',{method:'POST',auth:true,
+          body:{nguoiNhanID:Number(peerId),noiDung:content}});
+      }
+      setInboxTick(v=>v+1);
+      setHistoryTick(v=>v+1);
+      return true;
+    }catch(err){setError(err.message);return false;}
     finally{setSending(false);}
-  }
-  function onMessageKey(e) {
-    if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing) {
-      e.preventDefault();
-      if(content.trim()&&!sending)e.currentTarget.form?.requestSubmit();
-    }
   }
   const visibleInbox=inbox.filter(item=>!query.trim()||
     item.user.tenDangNhap.toLocaleLowerCase('vi').includes(query.trim().toLocaleLowerCase('vi')));
@@ -274,25 +278,17 @@ export default function MessagesPage({me}) {
               <div className={'zs-messenger-bubble-row'+(own?' is-own':'')}>
                 {!own&&<Avatar name={m.nguoiGuiTen} avatar={m.nguoiGuiAvatar} size="small"/>}
                 <div className="zs-messenger-message-group">
-                  <p className="zs-messenger-bubble">{m.noiDung}</p>
+                  <div className="zs-messenger-bubble">
+                    {m.noiDung&&<p className="zs-chat-message-text">{m.noiDung}</p>}
+                    {m.attachment&&<ChatAttachment attachment={m.attachment}/>}
+                  </div>
                   <time dateTime={m.thoiGian}>{clock(m.thoiGian)}</time>
                 </div>
               </div>
             </React.Fragment>;
           })}
         </div>
-        <form className="zs-messenger-composer" onSubmit={send}>
-          <label className="visually-hidden" htmlFor="zs-message-text">Nội dung tin nhắn</label>
-          <textarea id="zs-message-text" rows={2} maxLength={5000} value={content}
-            onChange={e=>setContent(e.target.value)} onKeyDown={onMessageKey}
-            placeholder={'Nhắn tin cho '+name+'...'}/>
-          <div className="zs-messenger-composer-bottom">
-            <span>Enter để gửi · Shift + Enter để xuống dòng</span>
-            <button type="submit" disabled={sending||!content.trim()}>
-              <Send size={17}/>{sending?'Đang gửi...':'Gửi'}
-            </button>
-          </div>
-        </form>
+        <ChatComposer key={peerId} peerName={name} sending={sending} onSend={send}/>
       </> : <div className="zs-messenger-welcome">
         <div className="zs-messenger-welcome-art" aria-hidden="true"><div className="zs-messenger-glow"/>
           <Orbit size={95} strokeWidth={.8}/><Sparkles size={22} className="zs-messenger-sparkle"/>

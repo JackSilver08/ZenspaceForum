@@ -156,6 +156,8 @@ func (a *App) Router() *gin.Engine {
     secured.DELETE("/xoataikhoan/:id", a.deleteAccount)
     secured.DELETE("/nguoidung/:id", a.deleteAccount)
     secured.POST("/chat/gui", a.sendMessage)
+    secured.POST("/chat/attachments", a.sendChatAttachment)
+    secured.GET("/chat/attachments/:id", a.getChatAttachment)
     secured.GET("/chat/lichsu/:id1/:id2", a.chatHistory)
     secured.GET("/chat/inbox", a.chatInbox)
     secured.GET("/v1/feed/public", a.personalizedPublicFeed)

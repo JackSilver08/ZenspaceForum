@@ -35,3 +35,4 @@
 .zs-main .auth h2 {font-weight:700}
 .zs-main .alert-danger {color:#9b2648;background:#ffedf3;border-color:#f2cbd5}
 .zs-not-found {border:1px solid var(--zs-border);background:#fff;border-radius:16px;padding:38px}
+\n@import './styles/chat-composer.css';\n

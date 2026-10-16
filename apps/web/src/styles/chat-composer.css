@@ -1,0 +1,52 @@
+/* Compact message composer, attachment previews and responsive file/emoji tools. */
+.zs-chat-composer {position:relative;background:#fff;border-top:1px solid #e4eaf5;padding:14px clamp(15px,3vw,34px) 16px;min-width:0}
+.zs-chat-input-line {display:flex;align-items:center;gap:8px;min-height:47px;padding:5px 8px 5px 17px;background:#f5f7fb;border:1px solid #e2e9f5;border-radius:28px;min-width:0}
+.zs-chat-input-line:focus-within {background:#fff;border-color:#b2c9ee;box-shadow:0 0 0 3px #2764c71c}
+.zs-chat-input-line textarea {min-width:0;flex:1;max-height:115px;min-height:25px;height:27px;padding:4px 0;border:0;outline:0;box-shadow:none;background:transparent;resize:none;font:400 13px/1.4 var(--zs-font);color:#243550}
+.zs-chat-input-line textarea::placeholder {color:#8999b4}
+.zs-chat-tool {display:grid;place-items:center;flex:0 0 33px;width:33px;height:33px;border:0;border-radius:50%;background:transparent;color:#7893c5}
+.zs-chat-tool:hover:not(:disabled),.zs-chat-tool[aria-expanded=true] {background:#e4edff;color:#2764c7}
+.zs-chat-send {width:37px;height:37px;flex:0 0 37px;display:grid;place-items:center;border:0;border-radius:50%;background:#2764c7;color:#fff}
+.zs-chat-send:hover:not(:disabled){background:#1c4fac}
+.zs-chat-tool:disabled,.zs-chat-send:disabled {opacity:.4;cursor:not-allowed}
+.zs-chat-file-input {position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.zs-chat-attachment-draft {display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:9px;background:#f3f7ff;border:1px solid #e2eaf7;border-radius:13px}
+.zs-chat-file-icon {display:grid;place-items:center;width:37px;height:37px;border-radius:10px;background:#e3edff;color:#2764c7}
+.zs-chat-attachment-draft>div {flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.zs-chat-attachment-draft strong {font:600 12px var(--zs-font);white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.zs-chat-attachment-draft small,.zs-chat-upload-status {font:400 11px var(--zs-font);color:#7786a0}
+.zs-chat-attachment-draft button {display:grid;place-items:center;background:transparent;color:#667892;border:0;width:30px;height:30px;border-radius:8px}
+.zs-chat-attachment-draft button:hover {background:#e7effb}
+.zs-chat-composer-error {margin:8px 4px 0;color:#a0354d;font-size:12px}
+.zs-chat-upload-status {display:block;padding:6px 4px 0}
+.zs-chat-emoji-wrap {position:relative;flex:0 0 33px}
+.zs-chat-emoji-picker {position:absolute;bottom:calc(100% + 16px);right:-50px;width:min(310px,calc(100vw - 48px));padding:15px;background:#fff;border:1px solid #dbe7f6;border-radius:15px;box-shadow:0 18px 45px #26476b28;z-index:15}
+.zs-chat-emoji-picker:after {content:'';position:absolute;bottom:-7px;right:61px;width:13px;height:13px;background:#fff;border-right:1px solid #dbe7f6;border-bottom:1px solid #dbe7f6;transform:rotate(45deg)}
+.zs-chat-emoji-picker strong {font:600 13px var(--zs-display);color:#31496f}
+.zs-chat-emoji-grid {display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;margin-top:12px}
+.zs-chat-emoji-grid button {display:grid;place-items:center;min-width:0;height:32px;border:0;border-radius:7px;background:transparent;font-size:21px}
+.zs-chat-emoji-grid button:hover {background:#edf3ff}
+.zs-messenger-bubble:has(.zs-chat-attachment) {padding:8px;max-width:min(390px,100%)}
+.zs-messenger-bubble-row.is-own .zs-messenger-bubble:has(.zs-chat-attachment) {background:#eaf3ff;color:#263c60;border-color:#bed5f8}
+.zs-chat-message-text {margin:0 0 6px;font:400 14px/1.65 var(--zs-font);white-space:pre-wrap;overflow-wrap:anywhere}
+.zs-messenger-bubble .zs-chat-message-text:last-child {margin-bottom:0}
+.zs-chat-attachment {min-width:160px;max-width:100%;font-size:12px}
+.zs-chat-attachment>a:first-child {display:block}
+.zs-chat-image,.zs-chat-video {display:block;border-radius:9px;max-width:100%;width:auto;max-height:330px;object-fit:contain;background:#f0f3f9}
+.zs-chat-video {width:min(350px,100%);max-height:280px}
+.zs-chat-audio {display:block;width:min(310px,100%);height:44px}
+.zs-chat-media-caption {display:flex;align-items:center;gap:7px;margin-top:7px;color:#5a739b;font:500 11px var(--zs-font)}
+.zs-chat-media-caption>span {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zs-chat-media-caption small {white-space:nowrap;color:#8795ac}
+.zs-chat-media-caption a {display:grid;place-items:center;width:30px;height:30px;border-radius:7px;color:#2764c7}
+.zs-chat-media-caption a:hover {background:#dceafe}
+.zs-chat-media-loading,.zs-chat-media-error {display:block;color:#6c7b95;font:400 12px var(--zs-font);padding:8px}
+.zs-chat-media-error {color:#b43950}
+@media(max-width:767px){
+ .zs-chat-composer {padding:10px 11px 12px}
+ .zs-chat-input-line {padding-left:12px;gap:3px}
+ .zs-chat-tool {width:32px;flex-basis:32px}
+ .zs-chat-input-line textarea {font-size:13px}
+ .zs-chat-emoji-picker {right:-53px;max-width:calc(100vw - 24px)}
+ .zs-messenger-bubble:has(.zs-chat-attachment) {max-width:100%}
+}
