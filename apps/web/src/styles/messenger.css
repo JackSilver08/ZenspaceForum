@@ -1,5 +1,13 @@
 /* Nebula Pearl messenger: familiar PC messaging layout, ZenSpace identity. */
-.zs-app--messages .zs-layout--messages{display:block!important;width:100%;max-width:none!important;padding:0!important;margin:0}
+/* Full-width chat is a dedicated React route layout, not a restyled feed grid. */
+.zs-app--messages .zs-body{min-width:0}
+.zs-app--messages .zs-content-area{width:0;min-width:0;flex:1 1 0}
+.zs-app--messages .zs-main--messages{display:block;width:100%;max-width:none;min-width:0;min-height:0;margin:0;padding:0}
+.zs-app--messages .zs-topbar{gap:clamp(10px,2vw,24px);padding-inline:clamp(12px,2vw,27px)}
+.zs-app--messages .zs-brand{width:auto;min-width:0;flex:0 1 200px}
+.zs-app--messages .zs-topbar-search{flex:1 1 175px;min-width:0;max-width:440px}
+.zs-app--messages .zs-topbar-actions{min-width:0;margin-left:auto}
+.zs-app--messages .zs-account-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .zs-app--messages .zs-main{max-width:none;width:100%;min-width:0}
 .zs-app--messages .zs-content-area{min-height:calc(100dvh - 72px)}
 .zs-app--messages .zs-sidebar{width:76px;flex-basis:76px;padding:22px 10px}
@@ -102,12 +110,17 @@
 .zs-messenger-alert{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;max-width:90%;padding:13px 16px;background:#fff2f4;border:1px solid #f3c5ce;box-shadow:0 9px 23px #8a1b2e21;border-radius:12px;font-size:12px;color:#96344a;z-index:10}
 .zs-messenger-alert button{border:0;background:transparent;color:#96344a;display:grid;place-items:center;width:30px;height:30px}
 @media(max-width:1100px) and (min-width:768px){
+ .zs-app--messages .zs-topbar-search{display:none}
+ .zs-app--messages .zs-brand{flex-basis:200px}
  .zs-messenger{grid-template-columns:minmax(245px,300px) minmax(0,1fr)}
  .zs-messenger-list-top{padding:18px 13px 10px}
  .zs-messenger-conversation-header{padding:14px 17px}
 }
 @media(max-width:767px){
- .zs-app--messages .zs-layout--messages{padding:0!important;max-width:100%!important}
+ .zs-app--messages .zs-main--messages{padding:0;width:100%}
+ .zs-app--messages .zs-brand{flex-basis:auto}
+ .zs-app--messages .zs-topbar{gap:10px}
+ .zs-app--messages .zs-topbar-actions{margin-left:auto}
  .zs-app--messages .zs-content-area{min-height:0}
  .zs-messenger{display:block;height:calc(100dvh - 60px - 70px);min-height:360px;max-height:none;border-left:0}
  .zs-messenger-list,.zs-messenger-conversation{width:100%;height:100%}

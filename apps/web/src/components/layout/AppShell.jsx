@@ -127,12 +127,14 @@ export default function AppShell({ me, onLogout, children }) {
         <div className="zs-sidebar-footer">ZENSPACE <span>✦</span> 2026</div>
       </aside>
       <div className="zs-content-area">
-        <div className={isMessages ? "zs-layout zs-layout--messages" : showSuggestions ? "zs-layout" : "zs-layout zs-layout--wide"}>
-          <main id="main-content" className="zs-main">{children}</main>
-          {showSuggestions && <aside className="zs-right-sidebar" aria-label="Gợi ý thành viên">
-            <CommunitySuggestions me={me}/>
-          </aside>}
-        </div>
+        {isMessages
+          ? <main id="main-content" className="zs-main zs-main--messages">{children}</main>
+          : <div className={showSuggestions ? "zs-layout" : "zs-layout zs-layout--wide"}>
+              <main id="main-content" className="zs-main">{children}</main>
+              {showSuggestions && <aside className="zs-right-sidebar" aria-label="Gợi ý thành viên">
+                <CommunitySuggestions me={me}/>
+              </aside>}
+            </div>}
       </div>
     </div>
     <nav className="zs-mobile-nav" aria-label="Điều hướng trên điện thoại">
