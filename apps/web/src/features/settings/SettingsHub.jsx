@@ -31,3 +31,4 @@ export default function SettingsHub({ me }) {
       )}
     </div>
   </section>;
+}
